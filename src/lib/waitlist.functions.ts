@@ -22,18 +22,7 @@ export const joinWaitlist = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<JoinWaitlistResult> => {
     const { publicClient } = await import("./supabase-public.server");
 
-    // `waitlist` is not in the generated Database types until Lovable applies
-    // 20260929173000_waitlist.sql and regenerates them. Narrowly structural-typed
-    // here so this compiles before that lands; delete the cast afterwards.
-    const sb = publicClient() as unknown as {
-      from: (table: string) => {
-        insert: (row: Record<string, unknown>) => Promise<{
-          error: { code?: string; message: string } | null;
-        }>;
-      };
-    };
-
-    const { error } = await sb
+    const { error } = await publicClient()
       .from("waitlist")
       .insert({ email: data.email, note: data.note ?? "", source: data.source });
 
