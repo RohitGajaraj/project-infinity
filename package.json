@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "keygen": "bun run scripts/keygen.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "e2e": "bun run scripts/e2e-phase1.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
