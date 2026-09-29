@@ -12,7 +12,16 @@
 export type Mandate = {
   permissions: string[];
   monthlySpendLimitUsd: number;
-  approvalAboveUsd: number;
+  /**
+   * Amount above which the owner must approve.
+   *
+   * `null` means no approval gate. `0` means **every** spend needs approval.
+   * Those are deliberately distinct: the previous encoding used 0 for "no gate",
+   * so an owner setting "require approval above $0" — meaning always ask me — got
+   * the exact opposite. A silent inversion of a safety control is worse than an
+   * awkward type.
+   */
+  approvalAboveUsd: number | null;
 };
 
 export type Allowance = {
@@ -79,11 +88,14 @@ export function decideSpend(
     };
   }
 
-  if (mandate.approvalAboveUsd > 0 && amountUsd > mandate.approvalAboveUsd) {
+  if (mandate.approvalAboveUsd !== null && amountUsd > mandate.approvalAboveUsd) {
     return {
       decision: "needs_approval",
       reason: "above_threshold",
-      shortfallExplanation: `$${amountUsd} is above the $${mandate.approvalAboveUsd} threshold the owner set, so a human must approve it. Amounts at or below $${mandate.approvalAboveUsd} need no approval.`,
+      shortfallExplanation:
+        mandate.approvalAboveUsd === 0
+          ? "This owner requires approval for every spend, so a human must approve before you proceed."
+          : `$${amountUsd} is above the $${mandate.approvalAboveUsd} threshold the owner set, so a human must approve it. Amounts at or below $${mandate.approvalAboveUsd} need no approval.`,
     };
   }
 
@@ -94,7 +106,11 @@ export function decideSpend(
 export function describeMandate(mandate: Mandate, allowance?: Allowance): string {
   const parts: string[] = [];
 
-  if (mandate.approvalAboveUsd > 0) {
+  if (mandate.approvalAboveUsd === 0) {
+    parts.push(
+      "Every spend needs your owner's approval. Call request_approval before any payment.",
+    );
+  } else if (mandate.approvalAboveUsd !== null) {
     parts.push(
       `Spend up to $${mandate.approvalAboveUsd} freely — your owner has pre-authorised it. Above $${mandate.approvalAboveUsd}, call request_approval and wait for a decision.`,
     );

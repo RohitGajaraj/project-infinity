@@ -44,7 +44,8 @@ export type AgentCredentialSubject = {
   mandate: {
     permissions: string[];
     monthlySpendLimitUsd: number;
-    approvalAboveUsd: number;
+    /** null = no approval gate; 0 = every spend needs approval. */
+    approvalAboveUsd: number | null;
   };
 };
 
@@ -79,7 +80,7 @@ export type CredentialSource = {
   owner_verified: boolean;
   permissions: string[];
   monthly_spend_limit: number;
-  approval_above: number;
+  approval_above: number | null;
   created_at: string;
   expires_at: string;
   // Attestation columns, appended by 20260929210000_owner_attestations.sql.

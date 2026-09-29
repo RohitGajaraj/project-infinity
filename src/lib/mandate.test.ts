@@ -40,9 +40,43 @@ describe("spending inside the mandate", () => {
     ).toBe("allowed");
   });
 
-  test("with no threshold set, anything within the ceiling is allowed", () => {
-    const noThreshold = { ...MANDATE, approvalAboveUsd: 0 };
-    expect(decideSpend(noThreshold, FRESH, { amountUsd: 199 }).decision).toBe("allowed");
+  test("with no gate (null), anything within the ceiling is allowed", () => {
+    const noGate = { ...MANDATE, approvalAboveUsd: null };
+    expect(decideSpend(noGate, FRESH, { amountUsd: 199 }).decision).toBe("allowed");
+  });
+});
+
+describe("the approval threshold of zero, which used to be inverted", () => {
+  // 0 previously meant "no gate", so an owner asking to approve everything got the
+  // opposite: never asked. A silent inversion of a safety control.
+  const alwaysAsk = { ...MANDATE, approvalAboveUsd: 0 };
+
+  test("zero means EVERY spend needs approval, including one cent", () => {
+    expect(decideSpend(alwaysAsk, FRESH, { amountUsd: 0.01 }).decision).toBe("needs_approval");
+    expect(decideSpend(alwaysAsk, FRESH, { amountUsd: 199 }).decision).toBe("needs_approval");
+  });
+
+  test("a zero-amount action still needs no approval", () => {
+    // Nothing is being spent, so there is nothing for a human to weigh.
+    expect(decideSpend(alwaysAsk, FRESH, { amountUsd: 0 }).decision).toBe("allowed");
+  });
+
+  test("null and zero are not interchangeable", () => {
+    const noGate = { ...MANDATE, approvalAboveUsd: null };
+    expect(decideSpend(noGate, FRESH, { amountUsd: 199 }).decision).toBe("allowed");
+    expect(decideSpend(alwaysAsk, FRESH, { amountUsd: 199 }).decision).toBe("needs_approval");
+  });
+
+  test("the explanation says every spend needs approval, not 'above $0'", () => {
+    const d = decideSpend(alwaysAsk, FRESH, { amountUsd: 10 });
+    expect(d.decision).toBe("needs_approval");
+    if (d.decision !== "needs_approval") return;
+    expect(d.shortfallExplanation).toMatch(/every spend/i);
+  });
+
+  test("the ceiling still wins over an approval gate of zero", () => {
+    const d = decideSpend(alwaysAsk, FRESH, { amountUsd: 5000 });
+    expect(d.decision).toBe("refused");
   });
 });
 
@@ -121,10 +155,16 @@ describe("guidance a model reads", () => {
     expect(text).toMatch(/request_approval/);
   });
 
-  test("omits the approval band when no threshold is set", () => {
-    const text = describeMandate({ ...MANDATE, approvalAboveUsd: 0 });
+  test("omits the approval band when there is no gate", () => {
+    const text = describeMandate({ ...MANDATE, approvalAboveUsd: null });
     expect(text).not.toMatch(/request_approval/);
     expect(text).toContain("$200");
+  });
+
+  test("a threshold of zero is described as approving every spend", () => {
+    const text = describeMandate({ ...MANDATE, approvalAboveUsd: 0 });
+    expect(text).toMatch(/every spend/i);
+    expect(text).toMatch(/request_approval/);
   });
 });
 

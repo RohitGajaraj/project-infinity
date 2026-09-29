@@ -16,11 +16,13 @@ export async function generateAgentKeys() {
 export function formatLimits(a: {
   permissions: string[];
   monthly_spend_limit: number;
-  approval_above: number;
+  approval_above: number | null;
 }) {
   const out = [...a.permissions];
   if (a.monthly_spend_limit > 0) out.push(`Spend up to $${a.monthly_spend_limit} / month`);
-  if (a.approval_above > 0) out.push(`Ask owner above $${a.approval_above}`);
+  if (a.approval_above !== null && a.approval_above > 0)
+    out.push(`Ask owner above $${a.approval_above}`);
+  if (a.approval_above === 0) out.push("Owner approves every spend");
   return out;
 }
 

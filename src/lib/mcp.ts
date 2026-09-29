@@ -254,7 +254,8 @@ export type AgentView = {
   owner_verified: boolean;
   permissions: string[];
   monthly_spend_limit: number;
-  approval_above: number;
+  /** null = no approval gate; 0 = every spend needs approval. */
+  approval_above: number | null;
   created_at: string;
   expires_at: string;
 };
@@ -272,6 +273,12 @@ const REFUSAL_HINTS: Record<string, string> = {
   agent_frozen: "Your owner has frozen you. Stop and report to your owner.",
   agent_expired: "Your mandate has expired. Ask your owner to reissue it.",
   invalid_amount: "The amount must be a number of zero or more.",
+  reference_reused:
+    "This reference was already used for a DIFFERENT amount. References identify one specific charge, so pick a reference that matches what you are paying for now.",
+  invalid_reference: "The reference is missing or longer than 200 characters.",
+  amount_not_in_cents: "Amounts must be whole cents, so at most two decimal places.",
+  contention_retry:
+    "Another request for this agent was in flight, so the outcome is unknown and nothing was recorded. Do not pay. Retry once with the SAME reference.",
 };
 
 function text(value: unknown): ToolOutcome {
@@ -317,7 +324,7 @@ function limitsView(agent: AgentView) {
     expires_at: agent.expires_at,
     status: agent.status,
     guidance:
-      agent.approval_above > 0
+      agent.approval_above !== null && agent.approval_above > 0
         ? `Spend up to $${agent.approval_above} without asking. Between $${agent.approval_above} and $${agent.monthly_spend_limit}, call request_approval first. Never exceed $${agent.monthly_spend_limit}.`
         : `Never exceed $${agent.monthly_spend_limit} in a month.`,
   };
@@ -532,11 +539,17 @@ export async function callTool(
             explanation: `$${amountUsd} exceeds the monthly ceiling of $${agent.monthly_spend_limit}. The owner would have to raise the limit; asking will not help.`,
           });
         }
-        if (agent.approval_above > 0 && amountUsd <= agent.approval_above) {
+        // null means no gate at all; 0 means every spend needs a human, so neither
+        // case may be short-circuited as pre-authorised.
+        const threshold = agent.approval_above;
+        if (threshold === null || (threshold > 0 && amountUsd <= threshold)) {
           return text({
             status: "approved",
             reason: "within_mandate",
-            explanation: `$${amountUsd} is at or below the $${agent.approval_above} threshold, so your owner has already pre-authorised it. Proceed without waiting.`,
+            explanation:
+              threshold === null
+                ? `$${amountUsd} is within the mandate and your owner set no approval threshold, so no approval is needed. Proceed.`
+                : `$${amountUsd} is at or below the $${threshold} threshold, so your owner has already pre-authorised it. Proceed without waiting.`,
           });
         }
       }

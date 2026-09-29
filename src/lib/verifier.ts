@@ -180,7 +180,7 @@ export function createVerifier(options: VerifierOptions = {}) {
       if (amount > monthlySpendLimitUsd) {
         return { allowed: false as const, reason: "over_spend_limit" as const };
       }
-      if (approvalAboveUsd > 0 && amount > approvalAboveUsd) {
+      if (approvalAboveUsd !== null && amount > approvalAboveUsd) {
         return { allowed: false as const, reason: "owner_approval_required" as const };
       }
       return { allowed: true as const };

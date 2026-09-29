@@ -20,18 +20,27 @@ type Fns = Database["public"]["Functions"];
 type FnName = keyof Fns;
 type FnRow<N extends FnName> = Fns[N]["Returns"] extends (infer R)[] ? R : never;
 
-function first<N extends FnName>(res: { data: unknown; error: { message: string } | null }): FnRow<N> | null {
+function first<N extends FnName>(res: {
+  data: unknown;
+  error: { message: string } | null;
+}): FnRow<N> | null {
   if (res.error) throw new Error(res.error.message);
   const rows = res.data as FnRow<N>[] | null;
   return rows?.[0] ?? null;
 }
 
-async function publicRpc<N extends FnName>(name: N, params: Fns[N]["Args"]): Promise<FnRow<N> | null> {
+async function publicRpc<N extends FnName>(
+  name: N,
+  params: Fns[N]["Args"],
+): Promise<FnRow<N> | null> {
   const { publicClient } = await import("./supabase-public.server");
   return first<N>(await publicClient().rpc(name, params as never));
 }
 
-async function adminRpc<N extends FnName>(name: N, params: Fns[N]["Args"]): Promise<FnRow<N> | null> {
+async function adminRpc<N extends FnName>(
+  name: N,
+  params: Fns[N]["Args"],
+): Promise<FnRow<N> | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return first<N>(await supabaseAdmin.rpc(name, params as never));
 }
