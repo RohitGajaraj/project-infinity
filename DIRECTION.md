@@ -859,3 +859,131 @@ the wrapper around it is what changes.**
 **My recommendation: option 1, with option 2 as the consumer surface later.** But this is a direction
 change, and §5 of the brief says a direction change waits for the founder. **No further feature work
 until that call is made** — the next build would otherwise be a guess with a competitor already in it.
+
+---
+
+## 13. What we actually are: identity, or infrastructure? Decided 2026-09-29
+
+> Founder's question, and it is the right one: *"Are we giving infra for agents, or identity for agents
+> — email, phone, identity, cards, insurance?"* Plus two corrections to my §12 framing: the candidate
+> directions should be folded into one build rather than chosen between, and **this is not a permanent
+> solo-founder company** — funding and hiring are expected, so "cannot out-cold-start an incumbent" is
+> a sequencing constraint, not a verdict.
+
+### 13.1 The answer: identity is the wedge, infrastructure is the business
+
+**We are the agent's operating identity and the rails it acts through. Verification is the free public
+good that makes those rails acceptable to strangers.**
+
+Said as one sentence: **Baselayer sells a *check* to the receiving institution. We issue the *identity
+and the rails* to the accountable party, and let anyone check for free.**
+
+| | **Baselayer** | **Infinity** |
+| --- | --- | --- |
+| Sells to | Banks, merchants, platforms — the receiver | The accountable party — agent platform or owner |
+| Product | A risk API. "Should I trust this agent?" | An operating identity. "Here is my agent's number, inbox, card, mandate, receipts" |
+| Revenue | Per check, to institutions | Per agent and per rail, to the agent's side |
+| Closest analogue | Socure or Persona, for agents | Twilio + Stripe Issuing + a passport office, for agents |
+| Owns a rail? | **No** — it is a data and risk layer | **Yes** — the number, the inbox, the card |
+| Verification | The product | Free, permanently (§10.1) |
+
+**[INFERENCE] Why that distinction is durable rather than semantic.** A risk API is bought by the
+receiver and priced per query, so its moat is the receiver network — which is why 2,300 financial
+institutions is Baselayer's real asset. Rails are bought by the actor and priced per unit of capability,
+so the moat is the identity itself plus the switching cost of a number, an inbox and a payment
+instrument the agent already operates under. **Those are two different companies that happen to share a
+noun.** Baselayer will not provision phone numbers; a fraud-intelligence company does not become a
+telco. And we should not try to become a fraud-intelligence company for banks — that is §14 constraint 5
+of the original ruling anyway.
+
+**So: identity is the wedge because it is what makes the rails trusted. The rails are the business
+because they are what recurs.** Email, phone, card and insurance are revenue lines; the credential is
+the thing that stops each one from being refused.
+
+### 13.2 The four options were never a choice. They are one sequence.
+
+The founder is right that §12.6 framed these as alternatives when they compose. Corrected:
+
+| Option from §12.6 | Its real role |
+| --- | --- |
+| **Verified agent voice calls** | **The wedge.** Where the pain is proven and no competitor holds the rail |
+| **Consumer safety rail** | **The consumer surface**, sold on safety, delivered on the same mandate and receipts |
+| **Stay horizontal** | **The architecture, from day one.** The credential is already industry-agnostic; nothing about a voice wedge narrows it |
+| Telecom authority | **A dependency of the wedge**, not a separate direction — see 13.4 |
+
+Nothing is dropped. The horizontal trust layer stays exactly as built; we stop *leading* with it,
+because leading with it is competing with a funded incumbent on their strongest ground.
+
+### 13.3 Why voice is the wedge, argued rather than asserted
+
+Five reasons, each tied to evidence already in this file.
+
+1. **It is the only pain where a named company is already paying cash for a workaround.** Meta routes
+   Muse's calls to trained humans because businesses hang up (§11.1). That is a budget line that exists
+   today, held by a buyer we can name.
+2. **No competitor is there.** Every player in §12.4 is an API for software talking to software. **There
+   is no HTTP header on a voice call**, so a credential-over-HTTPS product does not reach it. STIR/SHAKEN
+   authenticates the number and the signalling path but explicitly cannot confirm caller identity or
+   intent; Branded Caller ID is built for a business calling a consumer and is carrier-fragmented (§12.5).
+3. **It requires owning a rail, which is exactly what a risk API will not do.** Owning the number is
+   what makes us infrastructure rather than a lookup, and it is the natural root of inbox, card and
+   receipts.
+4. **The cold start is far weaker than for API verification, which is the decisive practical point.**
+   API verification needs the *business* to integrate something — that is the density problem Baselayer
+   solves with 2,300 institutions and we cannot. **A phone call needs the business to integrate
+   nothing.** The agent discloses itself and offers a way to check; a receptionist who does nothing at
+   all still received a disclosure from an accountable party. Checking is optional and additive.
+   **We can therefore deliver value with exactly one customer and zero verifiers**, which is the
+   property every other option lacks.
+5. **Disclosure is becoming compulsory, so the wedge rides law rather than persuasion.** EU AI Act
+   Article 50 has been enforceable since 2026-08-02; California already requires bots to identify
+   themselves in commercial interactions, with $5,000-per-violation penalties under its AI Transparency
+   Act (§12.5). Agents *must* announce themselves. Announcing gets them hung up on. **Compliance creates
+   the problem; nobody sells the cure.**
+
+### 13.4 What the wedge actually is, concretely
+
+Not "a phone product". **A verified, disclosed identity for an agent placing a call, and a receipt
+afterwards.**
+
+- A number provisioned per agent (or per platform), bound to the agent's credential and its KYC'd owner.
+- A disclosure the agent speaks at the top of the call, naming what it is and who it acts for, which is
+  what Article 50 requires anyway.
+- A **spoken short code** the business can optionally check — the reason §12's hardening migration moved
+  agent IDs to an alphabet with no I, O, 0 or 1 was precisely so an ID can be read aloud.
+- A signed transcript and outcome receipt afterwards, chained into the existing log, so a disputed
+  booking has evidence. This is where the mandate and the approval receipt earn their place.
+- **[ASSUMPTION, the one to test first]** that a disclosed, accountable, checkable agent gets hung up on
+  materially less often than an undisclosed one. **If that is false the wedge is dead**, and it is
+  cheap to test: place calls both ways and count. That test needs no product.
+
+### 13.5 On funding and team, which changes the sequencing
+
+The founder's correction matters. With capital and hires, the constraint is not "avoid anything
+requiring density" — it is **"reach a defensible position before an incumbent extends into it."**
+Baselayer's weakness is stated in its own coverage: *nobody is legally required to check yet*. They can
+fund an 18-month wait. So can we, with a raise — but only from a position they would have to build a
+telco to attack.
+
+That reframes the plan as: **own the voice rail while they own the bank check, and let the credential be
+the thing both need.** If we later hold the disclosed-agent voice channel, a partnership with Baselayer
+is more likely than a fight, because their receivers need our attestations and we need their reach.
+
+### 13.6 What this does not change
+
+- Every line of code built so far stands. Signed credentials, offline verification, the published key
+  set, proof of possession, mandates, the chained log, the drop-in verifier — all of it is the
+  mechanism, and a voice wedge consumes all of it.
+- §10's economics hold: the accountable party pays, verification is free forever.
+- §11's targeting holds: merchants and the long tail who want the transaction, never gatekeepers.
+- The credential stays industry-agnostic. Voice is the first channel, not the category.
+
+### 13.7 Immediate next steps, in order
+
+1. **Ship the security fix.** Done in this commit — see `20260929200000_fix_signed_action_auth.sql`.
+2. **Test the §13.4 assumption before building the voice rail.** Calls placed disclosed versus
+   undisclosed, hang-up rate counted. No product required, and it either validates the wedge or kills it
+   in days.
+3. **Finish making Agent ID solid**, per the founder's one-thing-at-a-time rule: the MCP surface so an
+   agent can use Infinity at all, and owner identity behind a real interface (§9 G4, G5).
+4. **Then** the voice rail, assuming step 2 passes.

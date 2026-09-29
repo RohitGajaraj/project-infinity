@@ -19,6 +19,8 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 - Schema changes land as timestamped SQL in `supabase/migrations/`, with GRANTs and RLS in the same file; the commit message starts with `DB MIGRATION NEEDED:` — we have no DB credentials, so Lovable applies them.
 - **After Lovable applies a migration, probe the live database and confirm it matches intent.** Skipping this is how every gap in `DIRECTION.md` §9 survived a commit called "Completed phase 1 build".
 - Public-facing server code uses the **publishable**-key client (`src/lib/supabase-public.server.ts`), not the service-role client, so a wrong RLS policy fails in development instead of being silently bypassed.
+- **Narrow exception:** writing agent-signed entries to the log uses the **service-role** client, because `record_signed_action` is service_role-only. That is deliberate — see the next rule.
+- **If a check lives in application code, the database function it guards must not be callable by anon.** Shipped and had to fix exactly this: `record_signed_action` verified Ed25519 in app code but was granted to anon, so anyone could bypass the server over REST and write forged authorship into the chained log. "The server validates first" is only true when the server is the *only possible caller*. Audit-log writes are privileged operations.
 - `user_roles` is **deferred, not dropped** (2026-09-29): nothing in phase 1 has a second role, and an unused table invites a wrong policy. Revisit the moment any surface distinguishes roles — and never put a role column on `profiles`.
 
 ## Secrets

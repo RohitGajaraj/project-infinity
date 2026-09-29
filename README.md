@@ -12,10 +12,13 @@
 > them. Separately, World's AgentKit (Altman-backed, launched 2026-03-17) holds the "cryptographic proof
 > a real human stands behind this agent" claim.
 >
-> **Do not build more features until the narrowing in [`DIRECTION.md` §12.6](./DIRECTION.md) is
-> decided.** The mechanism already built — signed credentials, offline verification, proof of
-> possession, mandates, the drop-in verifier — is reusable by every candidate direction. The wrapper is
-> what changes.
+> **Resolved in [`DIRECTION.md` §13](./DIRECTION.md):** identity is the wedge, **infrastructure is the
+> business.** Baselayer sells a *check* to the receiving institution; we issue the *identity and the
+> rails* to the accountable party and let anyone check for free. A fraud-intelligence company will not
+> become a telco, which is why the **voice channel is the wedge** — it is the one documented pain
+> (Meta pays humans because businesses hang up), it has no competitor because there is no HTTP header on
+> a phone call, and it needs the business to integrate **nothing**, so it works with one customer and
+> zero verifiers. Every line of code already written is the mechanism and is reused unchanged.
 
 **Infinity is the neutral trust layer for AI agents.** An agent built with anything — Claude Code,
 ChatGPT, Instinct, Muse, Cursor, or a company's own stack — gets what a person has: a verified identity
