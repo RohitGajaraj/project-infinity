@@ -14,32 +14,26 @@
 
 import type { Allowance } from "./mandate";
 
-/**
- * The functions added by 20260929230000_mandate_enforcement.sql are not in the
- * generated Database types until Lovable applies it and regenerates them. Each call
- * site declares the row it expects, so the shim stays honest about shape instead of
- * degrading everything to `unknown`. Remove once the types include
- * `agent_allowance`, `reserve_spend`, `create_approval_request` and `approval_state`.
- */
-type RpcClient = {
-  rpc: <Row>(
-    name: string,
-    params: Record<string, unknown>,
-  ) => Promise<{ data: Row[] | null; error: { message: string } | null }>;
-};
+import type { Database } from "@/integrations/supabase/types";
 
-async function publicRpc<Row>(name: string, params: Record<string, unknown>): Promise<Row | null> {
-  const { publicClient } = await import("./supabase-public.server");
-  const { data, error } = await (publicClient() as unknown as RpcClient).rpc<Row>(name, params);
-  if (error) throw new Error(error.message);
-  return data?.[0] ?? null;
+type Fns = Database["public"]["Functions"];
+type FnName = keyof Fns;
+type FnRow<N extends FnName> = Fns[N]["Returns"] extends (infer R)[] ? R : never;
+
+function first<N extends FnName>(res: { data: unknown; error: { message: string } | null }): FnRow<N> | null {
+  if (res.error) throw new Error(res.error.message);
+  const rows = res.data as FnRow<N>[] | null;
+  return rows?.[0] ?? null;
 }
 
-async function adminRpc<Row>(name: string, params: Record<string, unknown>): Promise<Row | null> {
+async function publicRpc<N extends FnName>(name: N, params: Fns[N]["Args"]): Promise<FnRow<N> | null> {
+  const { publicClient } = await import("./supabase-public.server");
+  return first<N>(await publicClient().rpc(name, params as never));
+}
+
+async function adminRpc<N extends FnName>(name: N, params: Fns[N]["Args"]): Promise<FnRow<N> | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await (supabaseAdmin as unknown as RpcClient).rpc<Row>(name, params);
-  if (error) throw new Error(error.message);
-  return data?.[0] ?? null;
+  return first<N>(await supabaseAdmin.rpc(name, params as never));
 }
 
 // --------------------------------------------------------------- allowance
@@ -54,7 +48,7 @@ type AllowanceRow = {
 
 export async function getAllowance(publicId: string): Promise<Allowance | null> {
   // Numeric columns arrive as strings over PostgREST, so coerce rather than trust.
-  const row = await publicRpc<AllowanceRow>("agent_allowance", { _public_id: publicId });
+  const row = await publicRpc("agent_allowance", { _public_id: publicId });
   if (!row) return null;
   return {
     monthlyLimitUsd: Number(row.monthly_limit_usd),
@@ -96,12 +90,12 @@ export async function reserveSpend(input: {
   reference: string;
   approvalReference?: string;
 }): Promise<SpendOutcome> {
-  const row = await adminRpc<SpendRow>("reserve_spend", {
+  const row = await adminRpc("reserve_spend", {
     _public_id: input.publicId,
     _amount_usd: input.amountUsd,
     _detail: input.detail,
     _reference: input.reference,
-    _approval_reference: input.approvalReference ?? null,
+    _approval_reference: input.approvalReference,
   });
 
   if (!row) return { allowed: false, reason: "failed", remainingUsd: 0, usageId: null };
@@ -124,7 +118,7 @@ export async function createApprovalRequest(input: {
   action: string;
   amountUsd?: number;
 }): Promise<ApprovalHandle> {
-  const row = await adminRpc<ApprovalRow>("create_approval_request", {
+  const row = await adminRpc("create_approval_request", {
     _public_id: input.publicId,
     _action: input.action,
     _amount_usd: input.amountUsd ?? 0,
@@ -153,7 +147,7 @@ export async function getApprovalState(
   publicId: string,
   reference: string,
 ): Promise<ApprovalState | null> {
-  const row = await adminRpc<ApprovalStateRow>("approval_state", {
+  const row = await adminRpc("approval_state", {
     _public_id: publicId,
     _reference: reference,
   });
