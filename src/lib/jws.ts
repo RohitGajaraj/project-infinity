@@ -106,7 +106,75 @@ export async function importRawPublicKey(raw: Uint8Array): Promise<CryptoKey> {
   );
 }
 
-/** Generate a fresh issuer keypair as JWKs, with a thumbprint `kid`. */
+/**
+ * An Ed25519 PKCS#8 document is a fixed 16-byte header followed by the 32-byte
+ * seed. Importing that and exporting it as a JWK yields both `d` and `x`, which
+ * is how we obtain a public key from a seed with no dependency — WebCrypto has
+ * no other way to go from private to public.
+ */
+const ED25519_PKCS8_PREFIX = Uint8Array.from([
+  0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+]);
+
+async function keypairFromSeed(seed: Uint8Array): Promise<{
+  privateJwk: Ed25519PrivateJwk;
+  publicJwk: Ed25519PublicJwk;
+}> {
+  if (seed.length !== 32) throw new Error("Ed25519 seed must be exactly 32 bytes.");
+  const pkcs8 = new Uint8Array(ED25519_PKCS8_PREFIX.length + 32);
+  pkcs8.set(ED25519_PKCS8_PREFIX, 0);
+  pkcs8.set(seed, ED25519_PKCS8_PREFIX.length);
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pkcs8 as unknown as BufferSource,
+    { name: "Ed25519" },
+    true,
+    ["sign"],
+  );
+  const jwk = (await crypto.subtle.exportKey("jwk", key)) as { x?: string; d?: string };
+  if (!jwk.x || !jwk.d) throw new Error("Ed25519 JWK export did not yield both x and d.");
+
+  const base: Ed25519PrivateJwk = { kty: "OKP", crv: "Ed25519", x: jwk.x, d: jwk.d };
+  const kid = await jwkThumbprint(base);
+  const privateJwk = { ...base, kid, alg: "EdDSA" as const, use: "sig" as const };
+  return { privateJwk, publicJwk: toPublicJwk(privateJwk) };
+}
+
+/**
+ * Derive a stable keypair from secret seed material.
+ *
+ * Deterministic on purpose: the edge runtime is multi-instance, so a randomly
+ * generated per-instance key would sign credentials that fail to verify against
+ * whichever instance happened to serve the key set. `info` provides domain
+ * separation, so the same seed cannot yield the same key for two purposes.
+ */
+export async function deriveKeypairFromSeed(
+  seedMaterial: string,
+  info: string,
+): Promise<{ privateJwk: Ed25519PrivateJwk; publicJwk: Ed25519PublicJwk }> {
+  if (!seedMaterial) throw new Error("Seed material must not be empty.");
+  const base = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(seedMaterial) as unknown as BufferSource,
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: enc.encode("infinity/issuer/v1") as unknown as BufferSource,
+      info: enc.encode(info) as unknown as BufferSource,
+    },
+    base,
+    256,
+  );
+  return keypairFromSeed(new Uint8Array(bits));
+}
+
+/** Generate a fresh random issuer keypair as JWKs, with a thumbprint `kid`. */
 export async function generateIssuerKeypair(): Promise<{
   privateJwk: Ed25519PrivateJwk;
   publicJwk: Ed25519PublicJwk;

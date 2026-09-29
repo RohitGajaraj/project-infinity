@@ -24,8 +24,12 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 ## Secrets
 
 - **`.env` is tracked in git and is not gitignored.** Nothing sensitive is in it today (Supabase publishable keys are public by design), but **no real secret may ever be written there.** Real secrets live only in Lovable's secret store.
-- The issuer private key is `INFINITY_ISSUER_JWK`, a single Ed25519 private JWK. It never touches the database, so a database compromise cannot mint credentials.
-- Generate issuer keys with `bun run keygen` and paste the secret straight into the secret store — never through a file, a commit, or a chat log.
+- **The issuer private key is never committed and never stored in the database**, so neither a repo leak nor a database compromise can mint credentials.
+- **The issuing key needs no manual setup.** It resolves in four modes, strongest first: `explicit` (`INFINITY_ISSUER_JWK`), `seed` (`INFINITY_ISSUER_SEED`), `provisional` (derived from `SUPABASE_SERVICE_ROLE_KEY`), `insecure` (derived from a constant, local dev only). Deployments work with zero configuration and can be hardened later by setting one variable.
+- **Derivation is deterministic, never random.** The edge runtime is multi-instance; a random per-instance key would sign credentials that fail against whichever instance served `/.well-known/jwks.json`. Never replace derivation with `generateIssuerKeypair()` at request time.
+- **Provisional and insecure modes must be reported, never hidden.** `key_mode` and `provisional` appear in issuer metadata, in the credential response, in the `x-infinity-key-mode` header, and as a visible warning on the Verify page. Silently signing with a dev key is the one failure that would discredit the whole product.
+- Before real users rely on a credential, set `INFINITY_ISSUER_JWK` (generate with `bun run keygen`) and `INFINITY_ISSUER_ORIGIN`. Paste the secret straight into the secret store — never into a file, a commit, or a chat log.
+- Rotation invalidates every credential signed by the old key. Add the new key to the published set before retiring the old one.
 
 ## Cryptography and the trust claim
 
@@ -45,3 +49,13 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 - Test files are excluded from `tsconfig.json` because Bun's global types conflict with the generated Supabase clients; `bun test` type-checks them at runtime.
 - `src/integrations/**` and `src/routeTree.gen.ts` are generated and excluded from lint — never hand-edit them.
 - Claims in the UI must be backed by code. A claim the repo cannot demonstrate is the documented failure mode of the previous project.
+
+## Customer model and the handshake (reasoning: DIRECTION.md §10)
+
+- **We sell to whoever is accountable for the agent. Verification is free for the business checking it — permanently.** Certificate-authority economics: the website pays, the browser checks free. Charging the verifier taxes the exact behaviour the network needs.
+- **Never put an API key, account requirement, rate limit or paywall on `/api/public/verify/*`, `/api/public/status/*`, `/api/public/credential/*` or `/.well-known/*`.** Adoption cost for a verifier must stay lower than the cost of thinking about it.
+- **A credential alone is a bearer token.** Any presenter can replay it, so identity is not established until the agent proves possession of the private key named inside the credential. Proof of possession is part of phase 1, not a later hardening step.
+- Challenge nonces are **single-use and bound to the agent**, or step 3 of the handshake is replayable.
+- **Verification is not authorization.** Inside the mandate is instant and needs no human, because the signed mandate *is* a pre-authorization. Outside it requires an owner decision and yields a signed approval receipt naming that specific action. Never make a verifier wait on a human to learn who an agent is.
+- Ride existing standards rather than inventing a format: **RFC 9421 HTTP Message Signatures** for the envelope, DPoP-style proof of possession, and stay compatible with **Web Bot Auth**. Neutrality means being adoptable without adopting us.
+- The three facts a verifier learns must stay independently checkable: *we issued the mandate* (signature), *the agent holds the key* (challenge response), *it is still live* (one status call). Only the third may require us.

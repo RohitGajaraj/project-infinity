@@ -367,3 +367,183 @@ of phase 1. **The credential is the product; the console is packaging.**
 5. **Schema into `supabase/migrations/`**, confirm the `owner_id` policy, settle `user_roles`. Closes G6–G8.
 6. **Honesty and hygiene:** mark or remove the fake sample, persist the waitlist, fix lint, test the
    crypto paths. Closes G9–G11.
+
+---
+
+## 10. Who the customer is, and how verification actually works, 2026-09-29
+
+> Founder question: *is this B2B, B2B2C or B2C — and concretely, when an Instinct or
+> Muse agent makes a reservation, how does the business verify it, two-way, in a fraction of a
+> second?* This section is the answer and it is binding. It exists so we stop drifting between
+> audiences mid-build, which is how the previous project restated its problem five times in ten weeks.
+
+### 10.1 The answer: B2B2C, on certificate-authority economics
+
+**We sell to whoever is accountable for the agent. Verification is free, unmetered and
+zero-integration for the business checking it.** Forever, not as an introductory offer.
+
+That single asymmetry decides almost every other design question, and it is not novel — it is how
+every trust layer that ever reached scale was priced:
+
+| Trust layer | Who pays | Who checks | Cost to the checker |
+| --- | --- | --- | --- |
+| TLS certificates | The website | Every browser | Free, built in |
+| DKIM / SPF / DMARC | The sender | Every receiving mail server | Free |
+| Visa / Mastercard | Acquirer and issuer, per transaction | The merchant | No subscription to "check a card" |
+| App notarisation | The developer | Every user | Free |
+| **Infinity** | **The accountable party behind the agent** | **Every business** | **Free** |
+
+**[INFERENCE]** The reason is structural, not generous. A trust layer's value is the *breadth of
+places its credential is accepted*. Charging the verifier taxes the exact behaviour the network needs,
+and the verifier's pain is probabilistic — nobody has a budget line called "agent verification" yet,
+whereas the agent's side has an immediate, concrete problem: **its agent gets blocked and the product
+fails.** Pain that blocks a product converts; pain that might cost you later does not.
+
+### 10.2 So who is the customer, precisely
+
+**The customer is the accountable party.** Same product, same credential, two billing relationships:
+
+- **B2B (first, and where the revenue is):** an agent platform — Instinct, Muse, Wajo, or a company
+  running its own fleet — pays per agent or per active mandate so its agents are accepted everywhere.
+  They buy fast because they are already rebuilding this plumbing themselves, and they buy in volume
+  because they have thousands of agents. This is also the answer to "isn't this a feature they'd
+  build?": they can build an ID, but they cannot build *neutrality*, and a bank will not accept an ID
+  the agent's own maker issued. See §8.2.
+- **B2C (second):** an individual pays for their own agent's passport. Covered in §10.6.
+- **Never the verifier.** A business pays nothing, signs nothing, and integrates nothing paid.
+
+### 10.3 The three situations a verifier is actually in
+
+Conflating these is the main design error available to us, so they are named separately.
+
+**A. Passive check — "is this agent real, whose is it, what may it do?"**
+Already built. The agent presents its credential; the business verifies the signature offline against
+`/.well-known/jwks.json` and makes one live call to `/api/public/status/{id}`. Sub-second, and the
+signature check needs no network at all after the key set is cached.
+
+**B. Proof of possession — "is the presenter actually this agent?"**
+**This is the gap that matters most, and it is not yet built.** A credential on its own is a bearer
+token: anything that copies it can present it. The agent must prove it holds the private key whose
+public half is *inside* the signed credential. That is what the agent's Ed25519 keypair is for, and
+it is currently decorative (§9 G2).
+
+**C. Approval — "may it do this specific thing?"**
+Separate from identity. Handled by the mandate, and by a human when the mandate says so (§10.5).
+
+### 10.4 The handshake, concretely
+
+Designed to ride existing standards rather than invent a format, because neutrality means being
+adoptable without adopting us: **HTTP Message Signatures (RFC 9421)** for the signing envelope,
+proof-of-possession in the DPoP style, and compatibility with **Web Bot Auth**, which exists because
+sites already want to tell good agents from bad ones.
+
+```
+  AGENT                                         BUSINESS
+    |                                              |
+    |-- 1. request + Agent-Credential: <vc+jwt> -->|
+    |                                              |  verify signature offline
+    |                                              |  against cached JWKS        ~0 ms
+    |<-- 2. 401 + Agent-Challenge: <nonce> --------|
+    |                                              |
+    |   sign(nonce ‖ method ‖ url ‖ body-hash)     |
+    |   with the agent's own Ed25519 key           |
+    |                                              |
+    |-- 3. retry + Signature: <sig> -------------->|
+    |                                              |  verify sig against the
+    |                                              |  publicKey INSIDE the
+    |                                              |  credential                 ~0 ms
+    |                                              |
+    |                                              |  one status call            ~30-50 ms
+    |                                              |  GET /api/public/status/{id}
+    |<-- 4. 200 proceed ---------------------------|
+```
+
+**Why this is genuinely two-way:** the business proves nothing about itself in step 1–4 — but it
+learns three independent facts without trusting us on any of them except liveness. The signature
+proves *we* issued the mandate. The challenge response proves *the agent holds the key we named*. Only
+"has the owner switched it off since?" requires a call to us, because no signature can express a
+future revocation. **That single unavoidable call is the whole of our lock-in, and it is honest.**
+
+**Latency budget:** one cached key-set fetch amortised to zero, two local signature verifications, one
+status call. The status endpoint is the only thing on the hot path, so it stays tiny, uncached-by-us
+but `stale-while-revalidate`-able by the verifier for a few seconds. A verifier who accepts a 5-second
+staleness window can operate at zero added latency.
+
+**The nonce must be single-use**, stored against the agent, or step 3 is replayable. That is a
+migration and a `sign_action` requirement, not an afterthought.
+
+### 10.5 Verification is not authorization, and only one of them can be instant
+
+**[DECISION]** The protocol separates them, because a human cannot answer in a fraction of a second.
+
+- **Inside the mandate** → instant. The mandate *is* a pre-authorization, exactly like a card's limit.
+  "Book up to $200, ask above $50" means a $40 booking needs no human, ever. This is why most
+  interactions are sub-second, and it is the reason the mandate belongs in the signed credential
+  rather than in a lookup.
+- **Outside the mandate** → the agent calls `request_approval`, the owner is asked by push, SMS or
+  WhatsApp, and the business is handed a **signed approval receipt** naming that specific action.
+  Seconds to minutes, and the business is told to expect a wait rather than being left hanging.
+
+**[INFERENCE]** The second path is where the defensibility compounds. Anyone can check a signature;
+only the party holding the owner relationship can get a human decision in seconds and put a signature
+on the answer. That receipt is also what settles a dispute later, and what an insurer prices against
+in phase 5.
+
+### 10.6 B2C: what a consumer actually buys
+
+A consumer does not want an identity product, and will not pay for one. What they will pay for is
+**a hard limit and an off switch on something that spends their money** — identity is the mechanism,
+safety is the purchase.
+
+- **The surface is one connection, not an app.** Their agent is Claude, ChatGPT, Instinct or Muse, so
+  the consumer adds Infinity as an MCP connection, passes one identity check, and sets limits. Thin
+  surface, heavy machinery behind it — the shape §0 was pointing at.
+- **What they get:** their agent can complete transactions that would otherwise be refused; a spend
+  ceiling the agent cannot exceed even if it malfunctions or is manipulated; an instant freeze; and
+  receipts that give them recourse when it gets something wrong.
+- **[ASSUMPTION, untested]** Consumer conversion is *downstream* of businesses checking. Nobody buys a
+  passport for a border that waves everyone through. So B2C is sequenced after at least one verifier
+  category checks routinely — attempting it first would be selling insurance against a risk the
+  customer has not met yet.
+
+### 10.7 Sequencing, and the correction to who the first verifier is
+
+**[CORRECTION to the mental model]** The restaurant-reservation example is the eventual story, not the
+first one. A restaurant has no API, no fraud budget, and no idea what an agent is. The realistic first
+verifier is **a website or API already receiving agent traffic that it currently cannot classify** —
+which is precisely the problem Cloudflare's Web Bot Auth was built for. Those operators already have
+the pain, already have the integration point, and already have a reason to allow good agents rather
+than block everything.
+
+So the order is:
+
+1. **Proof of possession + `sign_action` + the MCP surface.** Makes the credential non-bearer and
+   makes agents able to use us at all. Phase 1 is not done without it.
+2. **A drop-in verifier**: one function, one file, no account, no key, no rate limit. Its adoption
+   cost must be lower than the cost of thinking about it.
+3. **One design-partner platform** with agents that are getting blocked, paying per agent.
+4. **One verifier category** checking routinely.
+5. **Then** consumer.
+
+**Revised phase-1 done test**, replacing §9 C1 with something sharper: **one business completes the
+full handshake — credential, challenge, proof of possession, status — against an agent it does not
+own, in under a second, in its own codebase.** That is falsifiable, it is a single afternoon for the
+verifier, and it cannot be faked by onboarding agents nobody checks.
+
+### 10.8 What could make this wrong
+
+Recorded now so it is not rationalised away later.
+
+- **[RISK]** Businesses currently want to *block* agents, not verify them. If the defensive framing
+  ("tell good agents from fraud") converts and the enabling framing ("accept agents safely") does not,
+  the first product is a bot-classification tool with an identity layer underneath, and the positioning
+  has to follow the money. Watch which framing the first five conversations respond to.
+- **[RISK]** Cloudflare sits in front of a large share of the internet and could make agent identity a
+  checkbox. That is absorption risk of exactly the kind that killed the previous project. Our answer is
+  the part they will not do: the **accountable owner**, the **mandate**, and the **human approval
+  receipt**. Cloudflare can tell a site that a request came from a known agent. It cannot say who is
+  liable for it or that a person approved it. Stay on that ground and treat bot-auth as a rail to ride.
+- **[RISK]** If the free-verification side never reaches density, the paying side has nothing to buy.
+  This is the two-sided cold start that `MARKETPLACE-REVIEW.md` §6 warned about, and it is the single
+  most likely way this fails. The mitigation is that verification must be *free and one file*, and that
+  we go first in one high-traffic place rather than everywhere.

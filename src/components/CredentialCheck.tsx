@@ -14,7 +14,14 @@ import type { Jwks } from "@/lib/jws";
 
 type State =
   | { kind: "checking" }
-  | { kind: "verified"; kid: string; issuer: string; expires: string }
+  | {
+      kind: "verified";
+      kid: string;
+      issuer: string;
+      expires: string;
+      provisional: boolean;
+      warning?: string;
+    }
   | { kind: "failed"; reason: CredentialFailure }
   | { kind: "unsigned" }
   | { kind: "error"; message: string };
@@ -32,10 +39,6 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
           fetch("/.well-known/jwks.json"),
         ]);
 
-        if (credRes.status === 503) {
-          if (!cancelled) setState({ kind: "unsigned" });
-          return;
-        }
         if (!credRes.ok) {
           if (!cancelled)
             setState({ kind: "error", message: "No credential is published for this ID." });
@@ -47,7 +50,15 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
           return;
         }
 
-        const { credential } = (await credRes.json()) as { credential: string };
+        const {
+          credential,
+          provisional = false,
+          warning,
+        } = (await credRes.json()) as {
+          credential: string;
+          provisional?: boolean;
+          warning?: string;
+        };
         const jwks = (await jwksRes.json()) as Jwks;
 
         if (!jwks.keys?.length) {
@@ -68,6 +79,8 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
               month: "short",
               year: "numeric",
             }),
+            provisional,
+            ...(warning ? { warning } : {}),
           });
         } else {
           setState({ kind: "failed", reason: result.reason });
@@ -102,11 +115,20 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
       <p className="mt-3 text-sm text-muted-foreground">{describe(state)}</p>
 
       {state.kind === "verified" && (
-        <dl className="mt-4 space-y-2 border-t border-border pt-4 text-xs">
-          <Row label="Issuer" value={state.issuer} />
-          <Row label="Signing key" value={state.kid} mono />
-          <Row label="Credential expires" value={state.expires} />
-        </dl>
+        <>
+          {state.provisional && (
+            <p className="mt-3 rounded-md border border-seal/40 px-3 py-2 text-xs text-seal">
+              <strong className="font-medium">Development key.</strong>{" "}
+              {state.warning ??
+                "These credentials are not production-grade and must not be relied on."}
+            </p>
+          )}
+          <dl className="mt-4 space-y-2 border-t border-border pt-4 text-xs">
+            <Row label="Issuer" value={state.issuer} />
+            <Row label="Signing key" value={state.kid} mono />
+            <Row label="Credential expires" value={state.expires} />
+          </dl>
+        </>
       )}
 
       <p className="mt-4 border-t border-dashed border-border pt-3 text-xs text-muted-foreground">
@@ -126,7 +148,10 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
 function Indicator({ state }: { state: State }) {
   const map: Record<State["kind"], { text: string; className: string }> = {
     checking: { text: "Checking…", className: "text-muted-foreground" },
-    verified: { text: "Signature valid", className: "text-verified" },
+    verified:
+      state.kind === "verified" && state.provisional
+        ? { text: "Valid · dev key", className: "text-seal" }
+        : { text: "Signature valid", className: "text-verified" },
     failed: { text: "Signature invalid", className: "text-seal" },
     unsigned: { text: "Not signed", className: "text-muted-foreground" },
     error: { text: "Unavailable", className: "text-muted-foreground" },

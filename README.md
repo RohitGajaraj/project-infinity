@@ -16,11 +16,17 @@ We never build a vertical agent. An agent booking flights, filing taxes or writi
 ID, limits, wallet and receipts. Industry differences are settings on the permission slip, never
 separate products.
 
+**Who pays, settled ([`DIRECTION.md` §10](./DIRECTION.md)):** we sell to whoever is **accountable for
+the agent** — an agent platform first (B2B, in volume), an individual later (B2C). **Checking an agent
+is free, unmetered and zero-integration for the business doing the checking, permanently.** That is
+certificate-authority economics: the website pays, the browser checks free. Charging the verifier would
+tax the exact behaviour the network needs.
+
 ## Read in this order
 
 | File | What it settles |
 | --- | --- |
-| [`DIRECTION.md`](./DIRECTION.md) | **§8 is the approved plan** (supersedes §0 and §4). **§9 is the current phase-1 gap analysis and build order.** §1–§7 are the reasoning and the ruled-out directions, kept as evidence |
+| [`DIRECTION.md`](./DIRECTION.md) | **§8 is the approved plan** (supersedes §0 and §4). **§9 is the phase-1 gap analysis and build order. §10 settles who the customer is and how the verification handshake works — read it before building anything.** §1–§7 are the reasoning and ruled-out directions, kept as evidence |
 | [`AGENTS.md`](./AGENTS.md) | Technical decisions that bind. One rule plus a one-line reason |
 | [`MARKETPLACE-REVIEW.md`](./MARKETPLACE-REVIEW.md) | Why an agent marketplace was declined, with sizing and the player landscape. Its §6 finding — supply is oversupplied, demand is scarce — drives the phase-1 metric |
 | `.lovable/plan/*.md` | The archived approved plan, verbatim |
@@ -29,7 +35,7 @@ separate products.
 
 | Phase | Ships | Done when |
 | --- | --- | --- |
-| **1. ID + Verify** _(now)_ | Agent ID, owner limits, offline-verifiable signed credential, public Verify page, chained log, off switch, MCP + API | **One business performs a real verification check in a real flow** (revised — see `DIRECTION.md` §9 C1) |
+| **1. ID + Verify** _(now)_ | Agent ID, owner limits, offline-verifiable signed credential, proof of possession, public Verify page, chained log, off switch, MCP + API | **One business completes the full handshake — credential, challenge, proof of possession, status — against an agent it does not own, in under a second, in its own codebase** (`DIRECTION.md` §10.7) |
 | 2. Email | Per-agent inbox, every message signed | Agents send and receive real email |
 | 3. Phone | Numbers, SMS, calls, marked as a verified agent | An agent calls a business and passes verification |
 | 4. Wallet | Virtual cards via a licensed partner, limits, approvals | First real payments |
@@ -76,6 +82,27 @@ bun run build
 
 Never edit (generated): `src/integrations/supabase/*`, `src/routeTree.gen.ts`, `.env`,
 `supabase/config.toml`. Colours only via semantic tokens in `src/styles.css`.
+
+### The issuing key
+
+Credential signing works with **no configuration** — the key is derived deterministically from
+whatever secret material the environment already has, and the deployment reports which mode it is in:
+
+| Mode | Source | Production-grade |
+| --- | --- | --- |
+| `explicit` | `INFINITY_ISSUER_JWK` | Yes |
+| `seed` | `INFINITY_ISSUER_SEED` | Yes |
+| `provisional` | derived from `SUPABASE_SERVICE_ROLE_KEY` | No — fine while building |
+| `insecure` | derived from a constant in the source | No — local dev; the seed is public |
+
+Check which one a deployment is using at `/.well-known/infinity-issuer.json` (`key_mode`). Anything
+provisional shows a visible warning on the Verify page and sets `x-infinity-key-mode` on the
+credential response, so a development key can never pass for a real one.
+
+**Before real users:** run `bun run keygen`, set `INFINITY_ISSUER_JWK` in Lovable's secret store, and
+set `INFINITY_ISSUER_ORIGIN` to the canonical production origin. Derivation is deterministic on
+purpose — the edge runtime is multi-instance, so a random per-request key would sign credentials that
+fail against whichever instance served the key set.
 
 Hosting and deploys are managed by [Lovable](https://lovable.dev/projects/a72c22cc-c399-46a1-ae47-ed7543f69c3a).
 Pushes to `main` sync into the Lovable editor, so keep the branch working and never rewrite pushed history.
