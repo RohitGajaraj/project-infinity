@@ -232,11 +232,17 @@ function spec(origin: string) {
             owner: {
               type: "object",
               properties: {
-                name: { type: "string" },
+                name: {
+                  type: "string",
+                  description:
+                    "Account-controlled display label; not extracted from identity evidence.",
+                },
+                name_source: { type: "string", const: "self_declared" },
                 identity_verified: {
                   type: "boolean",
-                  description: "Derived; prefer the credential's attestation.",
+                  description: "Derived from the live attestation beside it.",
                 },
+                attestation: { $ref: "#/components/schemas/Attestation" },
               },
             },
             permissions: { type: "array", items: { type: "string" } },

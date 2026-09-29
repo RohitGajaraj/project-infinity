@@ -28,7 +28,9 @@ export type AgentCredentialSubject = {
   /** The agent's own Ed25519 signing key, `ed25519:<base64>`. */
   publicKey: string;
   owner: {
+    /** Account-controlled display label. It is not extracted from identity evidence. */
     name: string;
+    nameSource: "self_declared";
     /**
      * Retained for compatibility and convenience. Derived from
      * `attestation.assurance !== "none"` — prefer the attestation, which says by
@@ -114,6 +116,7 @@ export function buildCredentialPayload(
     publicKey: agent.public_key,
     owner: {
       name: agent.owner_name ?? "Unnamed owner",
+      nameSource: "self_declared",
       // Derived, so the boolean can never disagree with the attestation beside it.
       identityVerified: attestation.assurance !== "none",
       attestation,

@@ -168,6 +168,7 @@ describe("verification — the happy path", () => {
     if (!result.valid) return;
     expect(result.subject.id).toBe(AGENT.public_id);
     expect(result.subject.owner.name).toBe("Rohit S.");
+    expect(result.subject.owner.nameSource).toBe("self_declared");
     expect(result.statusUrl).toContain("/api/public/status/");
   });
 

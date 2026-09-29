@@ -2,17 +2,21 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsoleShell } from "@/components/ConsoleShell";
+import { OwnerAccountability } from "@/components/OwnerAccountability";
 import { fmtDate } from "@/lib/keys";
 
 export const Route = createFileRoute("/_authenticated/agents/")({
   head: () => ({
     meta: [
       { title: "Your agents — Infinity" },
-      { name: "description", content: "Manage the verified AI agents that act on your behalf." },
+      {
+        name: "description",
+        content: "Manage the signed credentials for agents acting on your behalf.",
+      },
       { property: "og:title", content: "Your agents — Infinity" },
       {
         property: "og:description",
-        content: "Manage the verified AI agents that act on your behalf.",
+        content: "Manage the signed credentials for agents acting on your behalf.",
       },
     ],
   }),
@@ -34,28 +38,30 @@ function AgentsPage() {
   const profile = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("*").maybeSingle();
+      const { data, error } = await supabase.from("profiles").select("display_name").maybeSingle();
+      if (error) throw error;
       return data;
     },
   });
 
   return (
     <ConsoleShell>
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground">
-            {profile.data?.display_name || "Owner"} ·{" "}
-            {profile.data?.identity_verified ? "identity verified" : "identity check pending"}
+            {profile.data?.display_name || "Owner"} · credential console
           </p>
           <h1 className="mt-3 font-serif text-5xl">Your agents</h1>
         </div>
         <Link
           to="/agents/new"
-          className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
+          className="min-h-11 self-start rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground sm:self-auto"
         >
           Add agent
         </Link>
       </div>
+
+      <OwnerAccountability />
 
       <div className="mt-10 border-t border-border">
         {agents.isLoading && <p className="py-10 text-sm text-muted-foreground">Loading…</p>}

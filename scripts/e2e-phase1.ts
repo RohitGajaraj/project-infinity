@@ -450,12 +450,142 @@ check(
 );
 
 step("10. Anonymous callers must not read the tables directly");
-for (const table of ["agents", "profiles", "agent_events"]) {
+for (const table of [
+  "agents",
+  "profiles",
+  "agent_events",
+  "owner_attestations",
+  "owner_identity_sessions",
+  "owner_identity_events",
+]) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1`, { headers: anon });
   const body = (await r.json()) as unknown;
   const empty = Array.isArray(body) && body.length === 0;
   check(`anon sees no rows in ${table}`, empty || r.status >= 400, `HTTP ${r.status}`);
 }
+
+step("11. Owner identity flow is bound to auth.uid and privileged finalization");
+const beginIdentity = () =>
+  fetch(`${SUPABASE_URL}/rest/v1/rpc/begin_owner_identity_session`, {
+    method: "POST",
+    headers: authed,
+    body: JSON.stringify({ _issuer: "didit" }),
+  });
+const firstIdentity = await beginIdentity();
+const firstIdentityRows = (await firstIdentity.json()) as Array<{
+  attempt_id: string;
+  can_start: boolean;
+}>;
+const secondIdentity = await beginIdentity();
+const secondIdentityRows = (await secondIdentity.json()) as Array<{
+  attempt_id: string;
+  can_start: boolean;
+}>;
+check(
+  "the first authenticated start allocates one opaque attempt",
+  firstIdentity.status === 200 && firstIdentityRows[0]?.can_start === true,
+);
+check(
+  "a retry reuses the attempt without creating another provider session",
+  secondIdentity.status === 200 &&
+    secondIdentityRows[0]?.attempt_id === firstIdentityRows[0]?.attempt_id &&
+    secondIdentityRows[0]?.can_start === false,
+);
+
+const identityAttempt = firstIdentityRows[0]?.attempt_id;
+const providerReference = crypto.randomUUID();
+async function bindIdentity() {
+  return fetch(`${SUPABASE_URL}/rest/v1/rpc/bind_owner_identity_session`, {
+    method: "POST",
+    headers: authed,
+    body: JSON.stringify({
+      _attempt_id: identityAttempt,
+      _provider_reference: providerReference,
+    }),
+  });
+}
+const firstBind = await bindIdentity();
+const secondBind = await bindIdentity();
+check("the owner can bind the provider session", firstBind.status === 200);
+check(
+  "an exact provider bind retry is idempotent",
+  secondBind.status === 200 && (await secondBind.json()) === true,
+);
+
+const ownerIdentityStatus = await fetch(`${SUPABASE_URL}/rest/v1/rpc/owner_identity_status`, {
+  method: "POST",
+  headers: authed,
+  body: "{}",
+});
+check("the owner can read their own accountability state", ownerIdentityStatus.status === 200);
+
+const anonymousBegin = await fetch(`${SUPABASE_URL}/rest/v1/rpc/begin_owner_identity_session`, {
+  method: "POST",
+  headers: anon,
+  body: JSON.stringify({ _issuer: "didit" }),
+});
+check("anonymous callers cannot allocate owner attempts", anonymousBegin.status >= 400);
+
+const anonymousFinalize = await fetch(
+  `${SUPABASE_URL}/rest/v1/rpc/finalize_owner_identity_session`,
+  {
+    method: "POST",
+    headers: anon,
+    body: JSON.stringify({
+      _attempt_id: crypto.randomUUID(),
+      _issuer: "didit",
+      _provider_reference: crypto.randomUUID(),
+      _event_id: crypto.randomUUID(),
+      _occurred_at: new Date().toISOString(),
+      _outcome: "approved",
+      _method: "government_id_and_liveness",
+      _assurance: "high",
+      _subject_country: "",
+    }),
+  },
+);
+check("only service_role can finalize an owner attestation", anonymousFinalize.status >= 400);
+
+const authenticatedFinalize = await fetch(
+  `${SUPABASE_URL}/rest/v1/rpc/finalize_owner_identity_session`,
+  {
+    method: "POST",
+    headers: authed,
+    body: JSON.stringify({
+      _attempt_id: identityAttempt,
+      _issuer: "didit",
+      _provider_reference: providerReference,
+      _event_id: crypto.randomUUID(),
+      _occurred_at: new Date().toISOString(),
+      _outcome: "approved",
+      _method: "government_id_and_liveness",
+      _assurance: "high",
+      _subject_country: "",
+    }),
+  },
+);
+check(
+  "authenticated owners cannot self-finalize an attestation",
+  authenticatedFinalize.status >= 400,
+);
+
+const legacyRecorder = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_owner_attestation`, {
+  method: "POST",
+  headers: authed,
+  body: JSON.stringify({
+    _owner_id: signup.user?.id,
+    _issuer: "didit",
+    _method: "government_id_and_liveness",
+    _assurance: "high",
+    _reference: crypto.randomUUID(),
+    _subject_country: "",
+    _valid_months: 12,
+  }),
+});
+check(
+  "the superseded unbound attestation recorder is not executable",
+  legacyRecorder.status >= 400,
+);
 
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : `${failures} CHECK(S) FAILED`}\n`);
 process.exit(failures === 0 ? 0 : 1);

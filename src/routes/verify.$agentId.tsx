@@ -3,12 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AgentIdCard, SAMPLE_AGENT, type AgentCard } from "@/components/AgentIdCard";
 import { CredentialCheck } from "@/components/CredentialCheck";
 import { verifyAgent } from "@/lib/verify.functions";
-import {
-  attestationFromRow,
-  attestationLabel,
-  describeAttestation,
-  type OwnerAttestation,
-} from "@/lib/identity";
+import { attestationFromRow, describeAttestation, type OwnerAttestation } from "@/lib/identity";
 import { fmtDate, formatLimits } from "@/lib/keys";
 
 type Verdict = "valid" | "frozen" | "expired" | "unknown" | "sample";
@@ -43,7 +38,7 @@ export const Route = createFileRoute("/verify/$agentId")({
       id: a.public_id,
       name: a.name,
       source: a.source,
-      owner: `${a.owner_name ?? "Owner"} · ${attestationLabel(attestation)}`,
+      owner: `${a.owner_name ?? "Unnamed owner"} · self-declared label`,
       status: verdict === "expired" ? "expired" : verdict === "valid" ? "valid" : "frozen",
       issued: fmtDate(a.created_at),
       expires: fmtDate(a.expires_at),
@@ -224,7 +219,7 @@ function EvidenceSummary({
           tone="neutral"
         />
         <EvidenceRow
-          label="Owner identity"
+          label="Owner account identity"
           value={ownerChecked ? `${attestation.issuer} · ${attestation.assurance}` : "Not checked"}
           tone={ownerChecked ? "neutral" : "bad"}
         />

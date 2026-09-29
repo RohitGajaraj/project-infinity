@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { attestationFromRow } from "@/lib/identity";
 import { lookupAgent } from "@/lib/verify.server";
 
 export const Route = createFileRoute("/api/public/verify/$agentId")({
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
           });
         const expired = new Date(a.expires_at).getTime() <= Date.now();
         const status = expired ? "expired" : a.status;
+        const attestation = attestationFromRow(a);
         return new Response(
           JSON.stringify({
             agent_id: a.public_id,
@@ -22,7 +24,12 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
             usable: status === "valid",
             name: a.name,
             source: a.source,
-            owner: { name: a.owner_name, identity_verified: a.owner_verified },
+            owner: {
+              name: a.owner_name ?? "Unnamed owner",
+              name_source: "self_declared",
+              identity_verified: attestation.assurance !== "none",
+              attestation,
+            },
             permissions: a.permissions,
             monthly_spend_limit_usd: a.monthly_spend_limit,
             approval_above_usd: a.approval_above,

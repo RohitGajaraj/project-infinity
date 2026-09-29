@@ -13,7 +13,7 @@ export const SAMPLE_AGENT: AgentCard = {
   id: "inf_7Q2K-9XRM-4LTB",
   name: "Atlas",
   source: "Claude Code",
-  owner: "Rohit S. · operator-attested sample",
+  owner: "Rohit S. · self-declared sample label",
   status: "valid",
   issued: "29 Sep 2026",
   expires: "29 Mar 2027",

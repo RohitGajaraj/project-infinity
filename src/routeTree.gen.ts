@@ -22,6 +22,7 @@ import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAgentsIdRouteImport } from './routes/_authenticated/agents.$id'
 import { Route as AuthenticatedAgentsNewRouteImport } from './routes/_authenticated/agents.new'
 import { Route as ApiPublicSandboxRouteImport } from './routes/api/public/sandbox'
+import { Route as ApiWebhooksDiditRouteImport } from './routes/api/webhooks/didit'
 import { Route as ApiPublicAllowanceAgentIdRouteImport } from './routes/api/public/allowance.$agentId'
 import { Route as ApiPublicChallengeAgentIdRouteImport } from './routes/api/public/challenge.$agentId'
 import { Route as ApiPublicCredentialAgentIdRouteImport } from './routes/api/public/credential.$agentId'
@@ -94,6 +95,11 @@ const ApiPublicSandboxRoute = ApiPublicSandboxRouteImport.update({
   path: '/api/public/sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksDiditRoute = ApiWebhooksDiditRouteImport.update({
+  id: '/api/webhooks/didit',
+  path: '/api/webhooks/didit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAllowanceAgentIdRoute =
   ApiPublicAllowanceAgentIdRouteImport.update({
     id: '/api/public/allowance/$agentId',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/agents/new': typeof AuthenticatedAgentsNewRoute
   '/api/public/sandbox': typeof ApiPublicSandboxRoute
+  '/api/webhooks/didit': typeof ApiWebhooksDiditRoute
   '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
   '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/agents/new': typeof AuthenticatedAgentsNewRoute
   '/api/public/sandbox': typeof ApiPublicSandboxRoute
+  '/api/webhooks/didit': typeof ApiWebhooksDiditRoute
   '/agents': typeof AuthenticatedAgentsIndexRoute
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
   '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/_authenticated/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/_authenticated/agents/new': typeof AuthenticatedAgentsNewRoute
   '/api/public/sandbox': typeof ApiPublicSandboxRoute
+  '/api/webhooks/didit': typeof ApiWebhooksDiditRoute
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
   '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/agents/$id'
     | '/agents/new'
     | '/api/public/sandbox'
+    | '/api/webhooks/didit'
     | '/agents/'
     | '/api/public/allowance/$agentId'
     | '/api/public/challenge/$agentId'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/agents/$id'
     | '/agents/new'
     | '/api/public/sandbox'
+    | '/api/webhooks/didit'
     | '/agents'
     | '/api/public/allowance/$agentId'
     | '/api/public/challenge/$agentId'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agents/$id'
     | '/_authenticated/agents/new'
     | '/api/public/sandbox'
+    | '/api/webhooks/didit'
     | '/_authenticated/agents/'
     | '/api/public/allowance/$agentId'
     | '/api/public/challenge/$agentId'
@@ -254,6 +266,7 @@ export interface RootRouteChildren {
   DotwellKnownJwksDotjsonRoute: typeof DotwellKnownJwksDotjsonRoute
   VerifyAgentIdRoute: typeof VerifyAgentIdRoute
   ApiPublicSandboxRoute: typeof ApiPublicSandboxRoute
+  ApiWebhooksDiditRoute: typeof ApiWebhooksDiditRoute
   ApiPublicAllowanceAgentIdRoute: typeof ApiPublicAllowanceAgentIdRoute
   ApiPublicChallengeAgentIdRoute: typeof ApiPublicChallengeAgentIdRoute
   ApiPublicCredentialAgentIdRoute: typeof ApiPublicCredentialAgentIdRoute
@@ -354,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/didit': {
+      id: '/api/webhooks/didit'
+      path: '/api/webhooks/didit'
+      fullPath: '/api/webhooks/didit'
+      preLoaderRoute: typeof ApiWebhooksDiditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/allowance/$agentId': {
       id: '/api/public/allowance/$agentId'
       path: '/api/public/allowance/$agentId'
@@ -419,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotwellKnownJwksDotjsonRoute: DotwellKnownJwksDotjsonRoute,
   VerifyAgentIdRoute: VerifyAgentIdRoute,
   ApiPublicSandboxRoute: ApiPublicSandboxRoute,
+  ApiWebhooksDiditRoute: ApiWebhooksDiditRoute,
   ApiPublicAllowanceAgentIdRoute: ApiPublicAllowanceAgentIdRoute,
   ApiPublicChallengeAgentIdRoute: ApiPublicChallengeAgentIdRoute,
   ApiPublicCredentialAgentIdRoute: ApiPublicCredentialAgentIdRoute,

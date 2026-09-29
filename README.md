@@ -132,6 +132,28 @@ set `INFINITY_ISSUER_ORIGIN` to the canonical production origin. Derivation is d
 purpose — the edge runtime is multi-instance, so a random per-request key would sign credentials that
 fail against whichever instance served the key set.
 
+### Accountable-owner checks
+
+The one owner-accountability screen uses a hosted Didit V3 workflow. Infinity sends only an opaque
+attempt UUID and stores only the provider reference, result, method, assurance, and validity dates.
+Documents, extracted personal fields, and raw webhooks are never stored. The account's displayed name
+remains explicitly self-declared; the provider attestation applies to the account holder and is never
+presented as proof of that label.
+
+Set these only in Lovable's secret store—never in `.env`:
+
+- `DIDIT_API_KEY`
+- `DIDIT_WEBHOOK_SECRET` (the destination's separate `secret_shared_key`)
+- `DIDIT_WORKFLOW_ID` (a KYC workflow containing government ID and liveness; the signed webhook
+  must match this ID and report both checks approved before Infinity records high assurance)
+- `DIDIT_ENVIRONMENT=sandbox` only on a sandbox deployment; omitted means `live`
+
+Configure the Didit destination to send `status.updated` to
+`https://<canonical-origin>/api/webhooks/didit` using webhook version V3. The implementation verifies
+`X-Signature-V2` over canonical JSON, with exact raw-body `X-Signature` as a fallback. See the
+[official webhook contract](https://docs.didit.me/integration/webhooks). Content was rephrased for
+compliance with licensing restrictions.
+
 Hosting and deploys are managed by [Lovable](https://lovable.dev/projects/a72c22cc-c399-46a1-ae47-ed7543f69c3a).
 Pushes to `main` sync into the Lovable editor, so keep the branch working and never rewrite pushed history.
 

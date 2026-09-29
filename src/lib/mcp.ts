@@ -306,12 +306,14 @@ function selfView(agent: AgentView, origin: string) {
     status: agent.status,
     acting_for: {
       name: agent.owner_name ?? "Unnamed owner",
+      name_source: "self_declared",
       identity_verified: agent.owner_verified,
     },
-    // Written so a model can say something true and useful without embellishing.
+    // The display label is account-controlled; the attestation applies to the
+    // account holder, not to a name extracted from provider evidence.
     how_to_introduce_yourself: agent.owner_verified
-      ? `I am an AI agent acting for ${agent.owner_name ?? "my owner"}. My verified Agent ID is ${agent.public_id} and you can check it at ${origin}/verify/${agent.public_id}.`
-      : `I am an AI agent acting for ${agent.owner_name ?? "my owner"}. My Agent ID is ${agent.public_id}, checkable at ${origin}/verify/${agent.public_id}. My owner has not completed an identity check yet.`,
+      ? `I am an AI agent acting for the account labelled ${agent.owner_name ?? "Unnamed owner"} (an owner-supplied name). That account has an Infinity-asserted identity attestation. My Agent ID is ${agent.public_id}, checkable at ${origin}/verify/${agent.public_id}.`
+      : `I am an AI agent acting for the account labelled ${agent.owner_name ?? "Unnamed owner"} (an owner-supplied name). My Agent ID is ${agent.public_id}, checkable at ${origin}/verify/${agent.public_id}. The account holder has not completed an identity check yet.`,
     verify_url: `${origin}/verify/${agent.public_id}`,
   };
 }
@@ -602,12 +604,13 @@ export async function callTool(
         trustworthy: usable,
         acting_for: {
           name: agent.owner_name ?? "Unnamed owner",
+          name_source: "self_declared",
           identity_verified: agent.owner_verified,
         },
         permitted_actions: agent.permissions,
         verify_url: `${ctx.issuerOrigin}/verify/${agent.public_id}`,
         explanation: usable
-          ? `Genuine agent acting for ${agent.owner_name ?? "its owner"}. Only deal with it within the permitted actions listed.`
+          ? `Infinity recognizes this agent under the owner-supplied account label ${agent.owner_name ?? "Unnamed owner"}. Only deal with it within the permitted actions listed, and require proof of possession in a live interaction.`
           : expired
             ? "This agent's mandate has expired. Do not deal with it."
             : "This agent has been frozen by its owner. Do not deal with it.",

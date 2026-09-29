@@ -1361,3 +1361,110 @@ fail, failures leave allowance unchanged, and owner freeze is not blocked by cha
 The governing conclusion is therefore corrected: **the core credential and handshake primitives are
 implemented and the discovered MCP impersonation path is closed; phase 1 is not yet a complete
 customer loop or an externally validated product.**
+
+---
+
+## 18. Foundation before connectors: accountable-owner activation, 2026-09-30
+
+Founder correction: MCP and other connectors are enablement at the end of a product journey, not the
+basement. The basement is the independently checkable credential and the accountable party whose
+mandate gives it meaning. The next build therefore closes the owner-accountability customer loop
+before adding a local MCP signer or more cross-agent surfaces.
+
+### 18.1 The missing mechanism
+
+§15 shipped the attestation schema and provider adapter but called G4 closed too early. No owner could
+start a check, no webhook could safely resolve a result to an owner, and no application path called the
+service-role recorder. The credential format could carry accountability evidence, but a customer could
+never produce it.
+
+The new flow is deliberately one screen and one hosted redirect:
+
+1. An authenticated owner asks to check the account holder. The database derives `owner_id` from
+   `auth.uid()`; no browser request accepts an owner ID.
+2. Infinity creates an opaque attempt UUID and sends only that UUID to Didit as `vendor_data`.
+3. Didit hosts all document and liveness collection. Infinity never builds document UI.
+4. The returned Didit session reference is bound to the same attempt by an owner-scoped function.
+5. A raw webhook is authenticated with Didit's separate destination secret. Canonicalization depth is
+   bounded before HMAC work so hostile unsigned JSON cannot exhaust the stack; after authentication,
+   the body is recursively stripped of PII before semantic processing. Its event ID, provider
+   occurrence time, configured workflow ID, approved ID result, and approved liveness result are
+   checked before a verdict exists.
+6. A service-role-only database function resolves the owner from the attempt/reference pair, applies
+   provider lifecycle events in order, and inserts or revokes the attestation idempotently.
+7. The existing `verify_agent` resolver carries current standing into the public Verify page and the
+   next freshly issued VC-JWT.
+
+The protocol follows Didit's current V3 session and webhook contracts
+([official documentation](https://docs.didit.me/integration/webhooks),
+[API flow](https://docs.didit.me/integration/api-full-flow)). Content was rephrased for compliance
+with licensing restrictions.
+
+### 18.2 The identity claim is narrower than the display name
+
+Adversarial review caught a critical semantic gap before release: `profiles.display_name` is chosen by
+the account and is not returned as a narrow provider verdict. A user could label an account with
+someone else's name and pass the hosted check as themselves. Therefore **the displayed owner name is
+self-declared and says so in every public/machine credential surface**. The provider attestation means
+that the holder of the account passed the named check; it does not prove that the self-declared label
+matches a document.
+
+Infinity still stores no extracted name or document PII. A future requirement to verify a legal name
+must be a separate, explicit privacy decision with a minimal provider-backed match result—not an
+inference smuggled into this field.
+
+### 18.3 Assurance is earned from signed evidence
+
+An `Approved` session alone is not labelled high assurance. The authenticated webhook must name the
+configured immutable workflow and contain successful `id_verifications[]` and `liveness_checks[]`
+results. Missing or different evidence fails closed. This prevents a misconfigured email-only workflow
+from minting a government-ID-plus-liveness claim.
+
+Provider lifecycle remains live rather than frozen at first verdict. A dedicated structural event-ID
+ledger makes consecutive and non-consecutive retries idempotent; provider `created_at` orders distinct
+events and becomes the attestation's `verified_at`, so delayed delivery cannot make old evidence look
+newly checked or renew its one-year life. `Declined → Resubmitted → Approved` can recover, while
+`Approved → Kyc Expired` revokes the matching attestation immediately. Older delayed events cannot
+overwrite newer standing; distinct allowed transitions in the same provider second are still evaluated
+rather than discarded.
+
+### 18.4 Cost, privacy, and UI boundaries
+
+Only one active attempt per owner/provider is allowed. Starts are serialized with an advisory lock,
+transport retries reuse the active attempt without creating another paid provider session, and binding
+the same provider reference is idempotent. An unbound start lease is ten minutes; a bound hosted check
+has twenty-four hours.
+
+The console adds one accountability card—not a KYC dashboard—with honest loading, unavailable,
+pending, declined, expired, and attested states. It explains exactly what enters the credential and
+what never reaches storage. Signed Didit destination tests are authenticated and acknowledged without
+finalization.
+
+### 18.5 Deployment contract
+
+`supabase/migrations/20260930040000_owner_identity_flow.sql` must be applied before this application
+slice. The deployment also needs `DIDIT_API_KEY`, `DIDIT_WEBHOOK_SECRET`, and `DIDIT_WORKFLOW_ID` in
+Lovable's secret store, plus a V3 `status.updated` destination targeting
+`/api/webhooks/didit`. Sandbox deployments must explicitly set `DIDIT_ENVIRONMENT=sandbox`; production
+defaults to `live`.
+
+After Lovable applies the migration, run the expanded live probe. It verifies anonymous table denial,
+auth-derived attempt ownership, duplicate-start reuse, owner-only status, and service-role-only
+finalization. Then run one signed Didit console test and one real sandbox flow, confirm no provider PII
+landed in either table/logs, and confirm the fresh credential carries the operator-asserted evidence.
+
+### 18.6 Source validation
+
+The final source pass is independently approved after adversarial fixes for self-declared-name
+confusion, unsupported assurance, lifecycle revocation/resubmission, duplicate paid starts, receipt-time
+renewal, equal-second/non-consecutive retries, test-webhook acknowledgement, pre-authentication nesting,
+and PII processing order.
+
+- `bunx tsc --noEmit`: pass
+- `bun run lint`: pass with 0 errors (7 pre-existing Fast Refresh warnings)
+- `bun test`: **200 pass, 0 fail**
+- `bun run build`: production client, SSR, Nitro and Cloudflare bundles pass
+- `git diff --check`: pass
+
+Database execution and a real Didit delivery remain intentionally unclaimed until Lovable applies the
+migration and the §18.5 deployment probe runs.

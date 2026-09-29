@@ -46,7 +46,8 @@ function AgentDetail() {
   });
   const profile = useQuery({
     queryKey: ["profile"],
-    queryFn: async () => (await supabase.from("profiles").select("*").maybeSingle()).data,
+    queryFn: async () =>
+      (await supabase.from("profiles").select("display_name").maybeSingle()).data,
   });
   const events = useQuery({
     queryKey: ["events", id],
