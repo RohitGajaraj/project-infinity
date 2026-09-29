@@ -95,7 +95,7 @@ export async function reserveSpend(input: {
     _amount_usd: input.amountUsd,
     _detail: input.detail,
     _reference: input.reference,
-    _approval_reference: input.approvalReference,
+    ...(input.approvalReference ? { _approval_reference: input.approvalReference } : {}),
   });
 
   if (!row) return { allowed: false, reason: "failed", remainingUsd: 0, usageId: null };
