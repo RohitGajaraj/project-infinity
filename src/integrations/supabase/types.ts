@@ -141,6 +141,48 @@ export type Database = {
         }
         Relationships: []
       }
+      owner_attestations: {
+        Row: {
+          assurance: string
+          created_at: string
+          expires_at: string
+          id: number
+          issuer: string
+          method: string
+          owner_id: string
+          reference: string
+          revoked_at: string | null
+          subject_country: string
+          verified_at: string
+        }
+        Insert: {
+          assurance: string
+          created_at?: string
+          expires_at?: string
+          id?: never
+          issuer: string
+          method: string
+          owner_id: string
+          reference?: string
+          revoked_at?: string | null
+          subject_country?: string
+          verified_at?: string
+        }
+        Update: {
+          assurance?: string
+          created_at?: string
+          expires_at?: string
+          id?: never
+          issuer?: string
+          method?: string
+          owner_id?: string
+          reference?: string
+          revoked_at?: string | null
+          subject_country?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -191,6 +233,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_owner_attestation: {
+        Args: { _owner_id: string }
+        Returns: {
+          assurance: string
+          expires_at: string
+          issuer: string
+          method: string
+          verified_at: string
+        }[]
+      }
       gen_agent_public_id: { Args: never; Returns: string }
       issue_agent_challenge: {
         Args: { _public_id: string; _purpose?: string }
@@ -198,6 +250,18 @@ export type Database = {
           expires_at: string
           nonce: string
         }[]
+      }
+      record_owner_attestation: {
+        Args: {
+          _assurance: string
+          _issuer: string
+          _method: string
+          _owner_id: string
+          _reference: string
+          _subject_country: string
+          _valid_months?: number
+        }
+        Returns: number
       }
       record_signed_action: {
         Args: {
@@ -221,6 +285,10 @@ export type Database = {
           last_hash: string
           monthly_spend_limit: number
           name: string
+          owner_attestation_assurance: string
+          owner_attestation_issuer: string
+          owner_attestation_method: string
+          owner_attestation_verified_at: string
           owner_name: string
           owner_verified: boolean
           permissions: string[]
