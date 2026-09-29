@@ -698,3 +698,164 @@ Speed on proof-of-possession and the mandate matters more than breadth of capabi
    wild rather than assumed by us.
 6. **Do not lead with "identity."** Lead with the outcome: *your agent stops getting blocked*, or for
    consumers, *it cannot spend more than this and you can kill it instantly.*
+
+---
+
+## 12. Competitive due diligence, 2026-09-29 — and the finding that forces a decision
+
+> Founder asked for a deep dive on AliasKit and on anyone else in this space, **before** more building.
+> That was the right instinct and it caught something. **AliasKit is not the threat. Baselayer is, and
+> our §10 positioning is now occupied by a funded company that announced seven days ago.** Read §12.3
+> before writing any more code. Content rephrased from sources; every claim carries its date.
+
+### 12.1 First, a factual correction
+
+Amazon blocked **Muse, Meta's agent** — not Shopify. Shopify did the opposite and *opened* checkout to
+browser-based agents on 2026-09-28. That distinction is the whole of §11.2: gatekeepers block for
+commercial reasons a credential cannot fix, merchants block for trust reasons it can. Getting these two
+the wrong way round would invert our targeting.
+
+### 12.2 AliasKit: real, but early, indie, and not our competitor
+
+**[FACT]** What the product does: persistent identity for an agent — real email inbox, phone number,
+virtual card, TOTP codes, one API call. W3C DID:web, VC-JWT, public JWKS, ES256/RS256 tokens,
+HMAC-signed webhooks, per-org isolation, LangChain adapters, ERC-8004 on-chain linking, bronze→platinum
+reputation driving allow/review/deny. Card details are encrypted client-side — they state they never see
+plaintext. Free tier of 10 identities, "5-minute setup". Distribution is through agent skill
+directories (LobeHub, Skywork Skill Hub).
+
+**[FACT] What I could not find, after targeted searching:** no funding announcement, no Crunchbase
+raise, no press coverage, no Product Hunt launch, no Hacker News thread, no named founder, no company
+address, no incorporation record, and a pricing page that is a single sentence with no numbers on it.
+
+**[INFERENCE] Stage: pre-traction indie or very small team, self-funded, no institutional backing.**
+The absence of all seven signals at once is itself the signal. A funded competitor in a hot category
+does not go unreported.
+
+**[INFERENCE] And they are solving a different problem.** Their framing is *"your agent operates on the
+internet like a human remote worker"* — alias inboxes and cards so an agent can sign up for things and
+check out. That is **capability for the agent**, i.e. helping it pass as an ordinary user. Ours is
+**acceptance by a counterparty**. The reputation score is self-issued, which is the same structural flaw
+as a maker-issued ID: a vendor grading its own customers. There is no KYC'd liable owner, no signed
+mandate, and no human-approval receipt.
+
+**Verdict: not a competitor to fear. A useful reference for phases 2–4** (agent inboxes, number
+provisioning, client-side card encryption, ERC-8004 linking, skill-directory distribution). **Worth
+copying:** their distribution channel. Publishing to agent skill directories is a real acquisition path
+we had not considered.
+
+### 12.3 Baselayer: this is the problem, and it is a direct hit
+
+**[FACT, 2026-09-22]** Baselayer announced a **$35M Series A led by M13** (Torch Capital, Picus
+Ventures, Afore Capital, and Matt Thompson of Socure) and launched its **Agentic Identity Suite**
+([PRNewswire via AOL](https://www.aol.com/articles/baselayer-raises-35m-series-led-131500000.html),
+[Finovate](https://finovate.com/baselayer-raises-35-million-for-its-agentic-identity-technology/),
+[Crunchbase News](https://news.crunchbase.com/ai/verifying-ai-agents-baselayer-35m-raise/)).
+
+- **What it does, in their words as reported:** the layer that lets **banks, merchants and platforms
+  verify which AI agent they are dealing with, who it represents, and whether it is authorised to act**
+  ([Yahoo Finance](https://finance.yahoo.com/technology/ai/articles/baselayer-raises-35m-build-know-134504151.html)).
+  They call it **"Know Your Agent."**
+- **Distribution they already hold:** an existing business-identity and fraud network **trusted by 1 in
+  5 US financial institutions — 2,300 institutions**.
+- **Based:** New York. **Stage:** Series A, product launched.
+
+**Compare that to our own §10, written yesterday:** *"a verified identity tied to a real accountable
+human or company… any business can check that identity in one call… verify which agent, who it acts
+for, and what it may do."* **It is the same sentence.** Recording that plainly rather than discovering
+it in three months.
+
+**And they solve the failure mode we identified as most likely to kill us.** §10.8 and
+`MARKETPLACE-REVIEW.md` §6 both said the two-sided cold start was the greatest risk: free verification
+only works if verifier density arrives. **Baselayer starts with 2,300 verifiers already integrated.**
+A solo founder cannot out-cold-start that.
+
+**Their one weakness, and it is real but not ours to exploit:** *nobody is legally required to check yet*
+([MSN](https://www.msn.com/en-us/money/technology/baselayer-raises-35m-to-build-ai-agent-identity-verification-no-law-yet-requires/ar-AA2cQfNP)).
+They can fund an 18-month wait for regulation. We cannot.
+
+### 12.4 The rest of the field, so the picture is complete
+
+**[FACT] Agent identity attracted well over $200M of disclosed funding in roughly twelve months:**
+
+| Player | Disclosed | Date | What it is |
+| --- | --- | --- | --- |
+| **Baselayer** | $35M Series A | 2026-09-22 | Know Your Agent for banks, merchants, platforms. **Our position** |
+| **World AgentKit** (Altman-backed) | part of World's $52.5M | launched 2026-03-17 | Toolkit letting agents carry **cryptographic proof that a real, unique human stands behind them** — our accountable-owner claim, on a personhood network |
+| NewCore | $66M seed | 2026-06-15 | Identities for agents "as employees"; authenticate, govern, control at scale |
+| Oak | $60M seed | 2026-07-15 | Unified identity control plane, GA, enterprise customers |
+| Keycard | $38M | 2025-10 | Ephemeral, task-scoped agent credentials |
+| Rig Security | $12M seed | 2026-09-29 | Tel Aviv; AI identity risk |
+| Scalekit | $5.5M seed | 2025-09 | Auth stack for agentic apps |
+
+Context for scale: **Instinct raised $1B Series C at a $10B valuation on 2026-09-28**, having launched
+invite-only in August 2026.
+
+**[INFERENCE]** Three clusters, and only one collides with us. Enterprise agent IAM (NewCore, Oak,
+Keycard, Scalekit, Rig) secures workloads *inside* one company and issues nothing a stranger accepts —
+adjacent, not competing. World holds "a real human stands behind this agent" with a personhood network
+we cannot replicate. **Baselayer holds the counterparty-verification layer, which is exactly what we
+wrote down.**
+
+### 12.5 What is genuinely still unsolved — and it is where our own evidence already pointed
+
+Every player above is an **API for software talking to software**. Cross-reference that against the
+strongest pain in §11.1 and a gap opens:
+
+| Documented problem | Evidence | Who solves it today |
+| --- | --- | --- |
+| **Businesses hang up on agent phone calls** | Meta now pays trained humans to place Muse's calls (§11.1) | **Nobody.** There is no HTTP header on a voice call |
+| Agent gets blocked at a merchant | Amazon vs Muse, 2026-09-20 | Baselayer (merchants), Shopify UCP profile (self-declared) |
+| Agent moves money at a bank | — | Baselayer, with 2,300 institutions |
+| Consumer agent overspends, no recourse | Wired on Instinct: saved $550, **wasted $64**, "might be a security nightmare" | **Nobody.** No cap, no off switch, no receipt |
+
+**[FACT] STIR/SHAKEN does not close the phone gap.** It authenticates that a call genuinely originates
+from the displayed number and that the signalling path was not tampered with. It **cannot confirm the
+caller's identity or intent**
+([First Orion](https://firstorion.com/blog/why-stir-shaken-cannot-stop-ai-voice-fraud-and-how-call-authentication-can)).
+Branded Caller ID adds a verified *business* name — but it is built for a business calling a consumer,
+requires direct registration with an FCC-licensed carrier, and suffers heavy carrier and device
+fragmentation in 2026. **The inverse case — an agent calling a business on behalf of a named consumer —
+is not covered by either.**
+
+**[FACT] And disclosure is becoming law, which turns this from nice-to-have into obligation.** EU AI Act
+**Article 50 transparency obligations became enforceable on 2026-08-02**: systems interacting directly
+with people must disclose they are AI ([DCO](https://dco.org/dco-policy-tracker/)). California's bot
+disclosure law (SB 1001) already requires a bot to identify itself in commercial interactions, its AI
+Transparency Act is live with **$5,000-per-violation** penalties, and a further California bill would
+require bots to disclose identity before interacting and to **answer truthfully when asked whether they
+are a bot**.
+
+**[INFERENCE] Put those together and the shape of the opportunity is:** agents are legally obliged to
+disclose that they are agents, disclosure currently gets them hung up on, and no existing
+infrastructure lets a disclosed agent be *trusted* on a voice channel. Compliance creates the
+disclosure; nobody has built the trust that makes disclosure survivable.
+
+### 12.6 The decision this forces, stated honestly
+
+**Continuing to build a general "trust layer for every agent" is now building Baselayer's product with
+none of Baselayer's distribution and none of its money.** That is the Supaprod pattern exactly: a
+technically strong general platform, a correct thesis, and a better-positioned incumbent shipping it.
+The founder's instruction — validate before building further — caught it in one day instead of three
+months, which is the whole point of the §2 filter.
+
+**What survives untouched.** Everything built so far is the *mechanism*, not the positioning: the
+signed credential, offline verification, the published key set, proof of possession, the mandate, the
+chained log, the drop-in verifier. All of it is reusable by any narrowing below. **No code is wasted;
+the wrapper around it is what changes.**
+
+**Three candidate narrowings, to be decided by the founder, not by me:**
+
+1. **Verified agent voice calls.** The only evidenced pain with a named company already paying cash for
+   a workaround, zero direct competitors, a legal tailwind from Article 50, and buyers we can name
+   (Meta/Muse, Instinct, Wajo, plus every voice-agent startup). Uses the credential and mandate
+   directly. **Strongest on evidence; unproven on whether a small business will check anything mid-call.**
+2. **The consumer safety rail.** Hard spend cap, instant off switch, receipts and recourse for people
+   running Instinct/Muse-class agents. Evidenced by real user reports, no direct competitor, and it is
+   the §10.6 purchase. **Weakest on willingness to pay; strongest on being genuinely unoccupied.**
+3. **Stay horizontal and accept the fight.** Only defensible if we can reach verifier density somewhere
+   Baselayer is not, i.e. outside financial institutions. **Hardest, and the one I would argue against.**
+
+**My recommendation: option 1, with option 2 as the consumer surface later.** But this is a direction
+change, and §5 of the brief says a direction change waits for the founder. **No further feature work
+until that call is made** — the next build would otherwise be a guess with a competitor already in it.

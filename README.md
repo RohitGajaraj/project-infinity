@@ -1,7 +1,21 @@
 # Project Infinity
 
-> _Last updated: 2026-09-29. Status: **phase 1 (Agent ID + Verify) in progress — working console and
-> Verify page; the cryptographic trust layer is being built now.** Gap analysis: [`DIRECTION.md` §9](./DIRECTION.md)._
+> _Last updated: 2026-09-29. Status: **phase-1 mechanism works end to end. Positioning is BLOCKED
+> pending a founder decision — see [`DIRECTION.md` §12](./DIRECTION.md).**_
+
+> [!WARNING]
+> **Competitive finding, 2026-09-29.** Baselayer announced a **$35M Series A on 2026-09-22** and
+> launched a "Know Your Agent" Agentic Identity Suite: the layer letting banks, merchants and platforms
+> verify which agent they are dealing with, who it represents, and whether it is authorised to act —
+> **the same sentence as our §10** — on top of an existing network of **2,300 US financial
+> institutions**. That is the two-sided cold start we named as our biggest risk, already solved for
+> them. Separately, World's AgentKit (Altman-backed, launched 2026-03-17) holds the "cryptographic proof
+> a real human stands behind this agent" claim.
+>
+> **Do not build more features until the narrowing in [`DIRECTION.md` §12.6](./DIRECTION.md) is
+> decided.** The mechanism already built — signed credentials, offline verification, proof of
+> possession, mandates, the drop-in verifier — is reusable by every candidate direction. The wrapper is
+> what changes.
 
 **Infinity is the neutral trust layer for AI agents.** An agent built with anything — Claude Code,
 ChatGPT, Instinct, Muse, Cursor, or a company's own stack — gets what a person has: a verified identity
