@@ -106,6 +106,7 @@ export type Database = {
           id: number
           kind: string
           reference: string
+          reverses_usage_id: number | null
         }
         Insert: {
           agent_id: string
@@ -116,6 +117,7 @@ export type Database = {
           id?: never
           kind?: string
           reference: string
+          reverses_usage_id?: number | null
         }
         Update: {
           agent_id?: string
@@ -126,6 +128,7 @@ export type Database = {
           id?: never
           kind?: string
           reference?: string
+          reverses_usage_id?: number | null
         }
         Relationships: [
           {
@@ -135,11 +138,25 @@ export type Database = {
             referencedRelation: "agents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_usage_approval_fk"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_usage_reverses_fk"
+            columns: ["reverses_usage_id"]
+            isOneToOne: false
+            referencedRelation: "agent_usage"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agents: {
         Row: {
-          approval_above: number
+          approval_above: number | null
           created_at: string
           expires_at: string
           id: string
@@ -153,7 +170,7 @@ export type Database = {
           status: string
         }
         Insert: {
-          approval_above?: number
+          approval_above?: number | null
           created_at?: string
           expires_at?: string
           id?: string
@@ -167,7 +184,7 @@ export type Database = {
           status?: string
         }
         Update: {
-          approval_above?: number
+          approval_above?: number | null
           created_at?: string
           expires_at?: string
           id?: string
@@ -329,6 +346,8 @@ export type Database = {
           period_start: string
           remaining_usd: number
           spent_this_month_usd: number
+          status: string
+          usable: boolean
         }[]
       }
       approval_state: {
