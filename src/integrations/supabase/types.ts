@@ -96,6 +96,47 @@ export type Database = {
           },
         ]
       }
+      agent_usage: {
+        Row: {
+          agent_id: string
+          amount_usd: number
+          approval_id: number | null
+          created_at: string
+          detail: string
+          id: number
+          kind: string
+          reference: string
+        }
+        Insert: {
+          agent_id: string
+          amount_usd?: number
+          approval_id?: number | null
+          created_at?: string
+          detail?: string
+          id?: never
+          kind?: string
+          reference: string
+        }
+        Update: {
+          agent_id?: string
+          amount_usd?: number
+          approval_id?: number | null
+          created_at?: string
+          detail?: string
+          id?: never
+          kind?: string
+          reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_usage_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agents: {
         Row: {
           approval_above: number
@@ -140,6 +181,53 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      approval_requests: {
+        Row: {
+          action: string
+          agent_id: string
+          amount_usd: number
+          consumed_at: string | null
+          decided_at: string | null
+          expires_at: string
+          id: number
+          reference: string
+          requested_at: string
+          status: string
+        }
+        Insert: {
+          action: string
+          agent_id: string
+          amount_usd?: number
+          consumed_at?: string | null
+          decided_at?: string | null
+          expires_at?: string
+          id?: never
+          reference: string
+          requested_at?: string
+          status?: string
+        }
+        Update: {
+          action?: string
+          agent_id?: string
+          amount_usd?: number
+          consumed_at?: string | null
+          decided_at?: string | null
+          expires_at?: string
+          id?: never
+          reference?: string
+          requested_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       owner_attestations: {
         Row: {
@@ -233,6 +321,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_allowance: {
+        Args: { _public_id: string }
+        Returns: {
+          approval_above_usd: number
+          monthly_limit_usd: number
+          period_start: string
+          remaining_usd: number
+          spent_this_month_usd: number
+        }[]
+      }
+      approval_state: {
+        Args: { _public_id: string; _reference: string }
+        Returns: {
+          action: string
+          amount_usd: number
+          consumed: boolean
+          expires_at: string
+          status: string
+        }[]
+      }
+      create_approval_request: {
+        Args: { _action: string; _amount_usd: number; _public_id: string }
+        Returns: {
+          expires_at: string
+          reference: string
+          status: string
+        }[]
+      }
       current_owner_attestation: {
         Args: { _owner_id: string }
         Returns: {
@@ -241,6 +357,12 @@ export type Database = {
           issuer: string
           method: string
           verified_at: string
+        }[]
+      }
+      decide_approval: {
+        Args: { _approve: boolean; _reference: string }
+        Returns: {
+          status: string
         }[]
       }
       gen_agent_public_id: { Args: never; Returns: string }
@@ -274,6 +396,21 @@ export type Database = {
         Returns: {
           event_id: number
           hash: string
+        }[]
+      }
+      reserve_spend: {
+        Args: {
+          _amount_usd: number
+          _approval_reference?: string
+          _detail: string
+          _public_id: string
+          _reference: string
+        }
+        Returns: {
+          allowed: boolean
+          reason: string
+          remaining_usd: number
+          usage_id: number
         }[]
       }
       verify_agent: {
