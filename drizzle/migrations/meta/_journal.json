@@ -43,6 +43,13 @@
       "when": 1790709955545,
       "tag": "0005_owner_attestations",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790710503797,
+      "tag": "0006_restrict_attestation_lookup",
+      "breakpoints": true
     }
   ]
 }
