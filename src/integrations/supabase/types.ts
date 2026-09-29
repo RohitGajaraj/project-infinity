@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_challenges: {
+        Row: {
+          agent_id: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          nonce: string
+          purpose: string
+        }
+        Insert: {
+          agent_id: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          nonce: string
+          purpose?: string
+        }
+        Update: {
+          agent_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          nonce?: string
+          purpose?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_challenges_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_events: {
         Row: {
           agent_id: string
@@ -22,7 +57,10 @@ export type Database = {
           hash: string
           id: number
           kind: string
+          nonce: string
           prev_hash: string
+          signature: string
+          signer: string
         }
         Insert: {
           agent_id: string
@@ -31,7 +69,10 @@ export type Database = {
           hash?: string
           id?: number
           kind: string
+          nonce?: string
           prev_hash?: string
+          signature?: string
+          signer?: string
         }
         Update: {
           agent_id?: string
@@ -40,7 +81,10 @@ export type Database = {
           hash?: string
           id?: number
           kind?: string
+          nonce?: string
           prev_hash?: string
+          signature?: string
+          signer?: string
         }
         Relationships: [
           {
@@ -148,6 +192,26 @@ export type Database = {
     }
     Functions: {
       gen_agent_public_id: { Args: never; Returns: string }
+      issue_agent_challenge: {
+        Args: { _public_id: string; _purpose?: string }
+        Returns: {
+          expires_at: string
+          nonce: string
+        }[]
+      }
+      record_signed_action: {
+        Args: {
+          _detail: string
+          _kind: string
+          _nonce: string
+          _public_id: string
+          _signature: string
+        }
+        Returns: {
+          event_id: number
+          hash: string
+        }[]
+      }
       verify_agent: {
         Args: { _public_id: string }
         Returns: {

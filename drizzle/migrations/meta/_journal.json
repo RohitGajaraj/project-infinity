@@ -15,6 +15,20 @@
       "when": 1790703655217,
       "tag": "0001_waitlist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790705670614,
+      "tag": "0002_harden_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790705698435,
+      "tag": "0003_signed_actions",
+      "breakpoints": true
     }
   ]
 }
