@@ -3,6 +3,11 @@
 ## 1. The idea
 Agents from Claude Code, Muse, Instinct, OpenAI or a startup's own code connect to us and get everything a person has: an ID tied to a real owner, a phone number and email, a wallet, a track record and insurance. We don't build agents. We make every agent accountable, so we can sit inside every app.
 
+**Core rule: works in every industry, and grows by showing up everywhere agents work.**
+- We never build features for one industry or one kind of task (no "travel agent" or "legal agent" products). An agent booking flights, filing taxes or writing code uses the same ID, limits, wallet and receipts.
+- We grow by being present wherever agents already run: an add-on inside Claude Code, ChatGPT, Muse and similar tools, plus a check button businesses put on their checkout, phone line or inbox.
+- Industry-specific needs (for example, healthcare privacy rules) become settings on the permission slip, never separate products.
+
 ## 2. Everything an agent needs, beyond the obvious
 | # | Layer | What it means for an agent |
 |---|---|---|
