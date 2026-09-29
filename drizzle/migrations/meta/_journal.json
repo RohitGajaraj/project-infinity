@@ -8,6 +8,13 @@
       "when": 1790698822224,
       "tag": "0000_phase1_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790703655217,
+      "tag": "0001_waitlist",
+      "breakpoints": true
     }
   ]
 }
