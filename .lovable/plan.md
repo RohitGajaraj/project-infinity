@@ -1,75 +1,61 @@
-# Project Infinity: the identity and trust layer for any company's agents
+# Project Infinity: the trust layer for every agent
 
-## 1. The idea
-Agents from Claude Code, Muse, Instinct, OpenAI or a startup's own code connect to us and get everything a person has: an ID tied to a real owner, a phone number and email, a wallet, a track record and insurance. We don't build agents. We make every agent accountable, so we can sit inside every app.
+## 1. What it is
+Every agent (Claude Code, Instinct, Muse, Wajo's Fo, or a company's own) connects to Infinity and gets what a person has: a verified ID tied to a real owner, its own email and phone number, a wallet with limits, a track record and insurance. Any business or app can check that ID before it deals with the agent.
 
-**Core rule: works in every industry, and grows by showing up everywhere agents work.**
-- We never build features for one industry or one kind of task (no "travel agent" or "legal agent" products). An agent booking flights, filing taxes or writing code uses the same ID, limits, wallet and receipts.
-- We grow by being present wherever agents already run: an add-on inside Claude Code, ChatGPT, Muse and similar tools, plus a check button businesses put on their checkout, phone line or inbox.
-- Industry-specific needs (for example, healthcare privacy rules) become settings on the permission slip, never separate products.
+We work in every industry and inside every app. We never build a "travel agent" or a "legal agent". We are the layer underneath all of them.
 
-**What Wajo shows us (wajo.ai, reviewed 29 Sep 2026).** Wajo's agent "Fo" runs errands the way Instinct does: it calls, emails, books, pays and cancels, and hands tricky cases to human assistants. To make that safe, Wajo had to build its own single-use payment cards, its own email address, a password vault and human backup. Every errand-agent company is rebuilding these same pieces. That makes Wajo, Instinct and Muse **our customers, not our competitors**: they could plug into us instead of building it all themselves. Wajo's "Fo handles it with trained assistants" feature also suggests one more layer to add: **human backup on demand** that any agent can call in.
+## 2. Positioning: why Muse or Instinct can't copy us
+The risk you raised: if Muse or Instinct build these features themselves, do we become obsolete? Here is why that doesn't happen, and how we stay ahead.
 
-## 2. Everything an agent needs, beyond the obvious
-| # | Layer | What it means for an agent |
+1. **Neutrality is the product.** Instinct can give its own agents an ID, but a bank, airline or shop won't trust an ID issued by the agent's own maker, any more than it trusts a passport someone printed at home. It will trust an independent party that checks agents from every company. Muse and Instinct are competitors, so neither can be that party for the other. Only a neutral layer can be. This is how Visa and Stripe became standards instead of any single bank.
+2. **They become customers, not rivals.** Wajo already had to build single-use cards, its own email, a password vault and human backup. Every agent company rebuilds the same plumbing. We sell it once to all of them.
+3. **The track record builds over time.** Every agent action through us adds to a history across companies. Insurance, trust scores and fraud detection depend on it. A newcomer, or one company that only sees its own agents, cannot recreate it.
+4. **Two-sided network.** The more businesses check Infinity IDs, the more agents need one, and the other way round. Being first in one high-value place (email and phone checks) starts that loop.
+5. **Built on open standards.** We use open formats (MCP for agent add-ons, signed credentials for IDs), so adopting us costs nothing. We don't compete on the format itself; we compete on being the trusted issuer, and on the history behind each ID.
+
+**The one-line pitch:** *"The passport, bank account and phone line for AI agents, trusted by every business because we don't make agents."*
+
+## 3. Where it lives: keep it simple
+Wajo runs on iMessage and Muse on WhatsApp because those are consumer assistants. We are infrastructure, so our "surface" is wherever agents already run:
+- **For developers:** one add-on (MCP) plus an API. Any agent gets its ID, email, phone and wallet in minutes.
+- **For owners:** a clean web console to create agents, set limits, approve actions and hit the off switch. Approvals also arrive by push, SMS or WhatsApp.
+- **For businesses:** a public "Verify agent" page and a one-line check they can add to their checkout, phone line or inbox.
+No mobile app in phase 1; the web console works well on phones.
+
+## 4. How it works (the questions you asked)
+- **Bringing in an outside agent:** the owner clicks "Add agent", picks the source (Claude Code, OpenAI, custom...), and gets an Agent ID plus a secret key. The agent installs our add-on and can then prove who it is.
+- **Tying the ID to a real person:** the owner passes a one-time identity check, like opening a bank account (through a provider such as Stripe Identity or Persona). Every agent points to that verified owner, who is responsible for it the way you are for your car.
+- **Making it checkable:** each agent has its own digital signing key. Every email, call and payment carries a signature anyone can check on our Verify page, without trusting the agent's maker.
+- **Wallet:** held by a licensed partner (Stripe Issuing, or a stablecoin wallet). The agent gets a virtual card. Every payment is checked against the owner's limits, and anything larger waits for approval.
+- **Insurance:** we're the broker, not the insurer. At first, small refunds come from a reserve funded by a fee on each transaction. Later, an insurance partner writes the policies, priced from the track record. Claims are settled using our signed receipts.
+- **Email and phone:** inboxes on our domain and numbers from Twilio, both limited by the owner's settings, and marked "verified agent for [owner]".
+
+## 5. Phases (one at a time; each must work before the next starts)
+| Phase | What ships | How we know it works |
 |---|---|---|
-| 1 | Identity / passport | A unique ID that can be checked, owned by a named person or company |
-| 2 | Permission slip | What it may do, spend and sign, for how long, and whether the owner must approve first |
-| 3 | Phone number + email | Its own contact details, so it never borrows yours |
-| 4 | Wallet / bank | Money with limits and an audit trail |
-| 5 | Logins and keys | Access to other services without ever seeing your password |
-| 6 | Track record | A trust score from every action, visible to businesses |
-| 7 | Insurance | Pays out when an agent makes a costly mistake |
-| 8 | **Disputes and refunds** | Someone to settle "the agent booked the wrong thing" (commonly overlooked) |
-| 9 | **Off switch** | Instantly freeze an agent everywhere: calls, money, logins |
-| 10 | **Receipts / proof of work** | A signed record of what the agent did, for whom, and when |
-| 11 | **Agent-to-agent handshake** | Two agents confirm each other's ID and limits before they deal |
-| 12 | **Legal / contracts** | Terms that make the owner answerable, so businesses will accept agents |
-| 13 | **Tax and invoices** | Agents that earn or spend need records an accountant can use |
-| 14 | **Inheritance / handover** | What happens to an agent's number, money and history if its owner leaves |
+| **1. ID + Verify** | Owner sign-up, "Add agent", Agent ID and keys, owner limits, public Verify page, signed activity log, off switch | 10 outside agents onboarded; businesses successfully check IDs |
+| 2. Email | Each agent gets its own inbox, with every email signed | Agents send and receive real email |
+| 3. Phone | Numbers, SMS and calls | Agent calls a business and passes verification |
+| 4. Wallet | Virtual cards with limits and owner approval | First real payments |
+| 5. Track record + insurance | Trust score, refund reserve, then an insurance partner | First claim paid |
 
-## 3. How connecting another company's agent works
-```text
-Owner signs up and proves who they are (ID check, like opening a bank account)
-   -> "Add agent": pick the source (Claude Code, Muse, custom...) and name it
-   -> We issue an Agent ID and a secret key, and the agent installs our small plugin
-   -> Owner sets the permission slip (limits, approvals, time window)
-   -> Agent receives its number, inbox and wallet
-   -> Every action goes through us, is signed, logged and scored
-```
-- **Plugging in:** most agent tools accept add-ons in a standard format (MCP). We ship one, so any compatible agent gets tools like "send email", "call", "pay" and "prove who I am" in minutes. Developers also get a simple API.
-- **How the ID is issued:** each agent gets its own digital key pair. Every message and payment is signed with it, so anyone can confirm it came from that agent without trusting the agent's maker.
-- **How it's tied to a real person:** the owner passes a one-time identity check (through a provider such as Stripe Identity or Persona). Every agent record points to that verified owner, and the owner is responsible for the agent, the same way you are responsible for your car.
-- **Wallet:** held by a licensed partner (Stripe Treasury/Issuing, or a stablecoin wallet). The agent gets a virtual card or account. Every spend is checked against the permission slip first, and anything above the limit waits for the owner to approve.
-- **Insurance:** we're the agent's broker, not the insurer. Stage 1: we cover small refunds from a reserve funded by a fee on each transaction. Stage 2: an insurance partner writes the policies, priced from our track-record data. Claims are approved from our signed receipts, which show exactly what happened.
-- **Phone and email:** numbers from Twilio and inboxes on our domain, both limited by the permission slip. Calls and messages show a "verified agent for [owner]" tag.
+**This build is phase 1 only.**
 
-## 4. How we make money
-Monthly fee per agent, plus per-use charges (numbers, messages, ID checks), a small cut of wallet transactions, insurance commissions, and a paid plan for businesses that check agent IDs.
+## 6. Phase 1 screens
+1. **Home page:** the one-line pitch, how it works in three steps, the add-on in a code box, and a waitlist.
+2. **Sign in and owner verification** (identity check as a placeholder step for now).
+3. **Agents console:** list of agents, each showing its status, source and last activity.
+4. **Add agent:** pick a source, name it, set limits (allowed actions, spending cap, when to ask for approval, expiry date), then receive the Agent ID and a one-time secret key.
+5. **Agent detail:** ID card view, limits, signed activity log, and a large off switch.
+6. **Public Verify page (`/verify/<id>`):** shows valid, frozen or unknown, the verified owner, the limits, and when it was issued. It is shareable and the design is the showpiece.
 
-## 5. Two products, one foundation
-```text
-  Our own errand assistant (Wajo-style)  |  Other companies' agents (Claude Code, Muse, Wajo...)
-                    \                        /
-          Agent ID + permission slip + email/phone + wallet + receipts + off switch
-```
-- **Infinity Assistant** (the Wajo-style product): you type "book a dentist Thursday" or "cancel my gym" and it emails, calls and pays on your behalf, using its own email address, single-use cards, and a human helper when it gets stuck. What makes it different from Wajo: every action carries a checkable Agent ID and a signed receipt, and you can export the assistant's number, history and limits to any other agent.
-- **Why build both:** the assistant is our first and most demanding customer. It proves the foundation works, earns money directly from users, and gives us real track-record data from day one. Other agents then plug into the same foundation.
+## 7. Design direction
+A premium, calm feel like what Anthropic, OpenAI or Google ship: a warm near-white background with near-black text, one restrained accent color, and plenty of space. A refined serif for headlines (such as Instrument Serif), a clean sans for text (such as Geist), and a monospace font for IDs and keys. Thin dividers, hardly any shadows, subtle motion. The ID card and Verify page are designed to feel like a real passport. Dark mode included. Before building, I'll show you three rendered design options to pick from.
 
-## 6. First build (to prove the idea)
-1. Home page and waitlist, presenting both products.
-2. Owner sign-up with an identity check step (a placeholder at first).
-3. **Assistant:** a chat where you type a task. The assistant plans it, shows each step, asks for approval before it sends or pays anything, and can send real emails from its own inbox. Calling and paying come later.
-4. **Agents dashboard:** add an outside agent (pick its source and name it), set its permission slip, and get its Agent ID and secret key.
-5. Our add-on (MCP) with tools any agent can use: send email, get my limits, prove who I am.
-6. Public check page for each agent, and an API anyone can use to confirm a signature.
-7. Activity log with signed receipts, plus an off switch.
-Next steps: phone calls, single-use cards, human backup, disputes, then insurance.
-
-## 7. Technical details
-- The assistant plans tasks with AI through Lovable AI Gateway. Answers stream in, and it must get approval before any email is sent or money is spent. It lives at `/_authenticated/assistant`, with task history saved per user.
-- Your own Supabase project (connected in Project Settings → Connectors) for sign-in and data. Tables: `owners`, `agents`, `agent_keys`, `mandates`, `events`, `channels`, plus `user_roles` in its own table. Row-level security on every table.
-- Routes: `/`, `/_authenticated/agents`, `/_authenticated/agents/$id`, public `/a/$handle`, `/api/public/verify`, and `/api/public/mcp` (the add-on endpoint, which checks the agent's key on every call).
-- Each agent's key pair is Ed25519. Only the public key is stored; every event is signed and chained so the log can't be altered.
-- Partner services (Twilio, Stripe, identity check) come in later steps, with their keys stored as secrets.
-- I'll update DIRECTION.md to record this change of direction, including dropping the financial-services limit.
+## 8. Technical details
+- Sign-in and data use your own Supabase project, connected in Project Settings → Connectors. It must be connected before phase 1 is built.
+- Tables: `owners`, `agents`, `agent_keys` (public key only), `mandates`, `events` (hash-chained and signed), plus `user_roles` in its own table. Every table gets GRANTs and row-level security.
+- Routes: `/`, `/auth`, `/_authenticated/agents`, `/_authenticated/agents/new`, `/_authenticated/agents/$id`, public `/verify/$agentId`, `/api/public/verify/$agentId` (JSON), and the MCP add-on at `/mcp` with the tools `whoami`, `get_limits` and `sign_action`.
+- Ed25519 keys are generated in the browser. The private key is shown once, and only the public key is stored.
+- I'll update DIRECTION.md and README.md to record this change of direction (no new docs).
