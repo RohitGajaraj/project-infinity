@@ -8,6 +8,8 @@ Agents from Claude Code, Muse, Instinct, OpenAI or a startup's own code connect 
 - We grow by being present wherever agents already run: an add-on inside Claude Code, ChatGPT, Muse and similar tools, plus a check button businesses put on their checkout, phone line or inbox.
 - Industry-specific needs (for example, healthcare privacy rules) become settings on the permission slip, never separate products.
 
+**What Wajo shows us (wajo.ai, reviewed 29 Sep 2026).** Wajo's agent "Fo" runs errands the way Instinct does: it calls, emails, books, pays and cancels, and hands tricky cases to human assistants. To make that safe, Wajo had to build its own single-use payment cards, its own email address, a password vault and human backup. Every errand-agent company is rebuilding these same pieces. That makes Wajo, Instinct and Muse **our customers, not our competitors**: they could plug into us instead of building it all themselves. Wajo's "Fo handles it with trained assistants" feature also suggests one more layer to add: **human backup on demand** that any agent can call in.
+
 ## 2. Everything an agent needs, beyond the obvious
 | # | Layer | What it means for an agent |
 |---|---|---|
