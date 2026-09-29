@@ -67,6 +67,7 @@ Monthly fee per agent, plus per-use charges (numbers, messages, ID checks), a sm
 Next steps: phone calls, single-use cards, human backup, disputes, then insurance.
 
 ## 7. Technical details
+- The assistant plans tasks with AI through Lovable AI Gateway. Answers stream in, and it must get approval before any email is sent or money is spent. It lives at `/_authenticated/assistant`, with task history saved per user.
 - Your own Supabase project (connected in Project Settings → Connectors) for sign-in and data. Tables: `owners`, `agents`, `agent_keys`, `mandates`, `events`, `channels`, plus `user_roles` in its own table. Row-level security on every table.
 - Routes: `/`, `/_authenticated/agents`, `/_authenticated/agents/$id`, public `/a/$handle`, `/api/public/verify`, and `/api/public/mcp` (the add-on endpoint, which checks the agent's key on every call).
 - Each agent's key pair is Ed25519. Only the public key is stored; every event is signed and chained so the log can't be altered.
