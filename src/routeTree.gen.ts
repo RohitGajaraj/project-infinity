@@ -10,11 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as VerifyAgentIdRouteImport } from './routes/verify.$agentId'
+import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
+import { Route as AuthenticatedAgentsIdRouteImport } from './routes/_authenticated/agents.$id'
+import { Route as AuthenticatedAgentsNewRouteImport } from './routes/_authenticated/agents.new'
+import { Route as ApiPublicVerifyAgentIdRouteImport } from './routes/api/public/verify.$agentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyAgentIdRoute = VerifyAgentIdRouteImport.update({
@@ -22,31 +37,94 @@ const VerifyAgentIdRoute = VerifyAgentIdRouteImport.update({
   path: '/verify/$agentId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAgentsIndexRoute =
+  AuthenticatedAgentsIndexRouteImport.update({
+    id: '/agents/',
+    path: '/agents/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAgentsIdRoute = AuthenticatedAgentsIdRouteImport.update({
+  id: '/agents/$id',
+  path: '/agents/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAgentsNewRoute = AuthenticatedAgentsNewRouteImport.update({
+  id: '/agents/new',
+  path: '/agents/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiPublicVerifyAgentIdRoute = ApiPublicVerifyAgentIdRouteImport.update({
+  id: '/api/public/verify/$agentId',
+  path: '/api/public/verify/$agentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
+  '/agents/$id': typeof AuthenticatedAgentsIdRoute
+  '/agents/new': typeof AuthenticatedAgentsNewRoute
+  '/agents/': typeof AuthenticatedAgentsIndexRoute
+  '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
+  '/agents/$id': typeof AuthenticatedAgentsIdRoute
+  '/agents/new': typeof AuthenticatedAgentsNewRoute
+  '/agents': typeof AuthenticatedAgentsIndexRoute
+  '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
+  '/_authenticated/agents/$id': typeof AuthenticatedAgentsIdRoute
+  '/_authenticated/agents/new': typeof AuthenticatedAgentsNewRoute
+  '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
+  '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/verify/$agentId'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/verify/$agentId'
+    | '/agents/$id'
+    | '/agents/new'
+    | '/agents/'
+    | '/api/public/verify/$agentId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/verify/$agentId'
-  id: '__root__' | '/' | '/verify/$agentId'
+  to:
+    | '/'
+    | '/auth'
+    | '/verify/$agentId'
+    | '/agents/$id'
+    | '/agents/new'
+    | '/agents'
+    | '/api/public/verify/$agentId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/verify/$agentId'
+    | '/_authenticated/agents/$id'
+    | '/_authenticated/agents/new'
+    | '/_authenticated/agents/'
+    | '/api/public/verify/$agentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   VerifyAgentIdRoute: typeof VerifyAgentIdRoute
+  ApiPublicVerifyAgentIdRoute: typeof ApiPublicVerifyAgentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +136,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify/$agentId': {
       id: '/verify/$agentId'
       path: '/verify/$agentId'
@@ -65,12 +157,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyAgentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/agents/': {
+      id: '/_authenticated/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AuthenticatedAgentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agents/$id': {
+      id: '/_authenticated/agents/$id'
+      path: '/agents/$id'
+      fullPath: '/agents/$id'
+      preLoaderRoute: typeof AuthenticatedAgentsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agents/new': {
+      id: '/_authenticated/agents/new'
+      path: '/agents/new'
+      fullPath: '/agents/new'
+      preLoaderRoute: typeof AuthenticatedAgentsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/verify/$agentId': {
+      id: '/api/public/verify/$agentId'
+      path: '/api/public/verify/$agentId'
+      fullPath: '/api/public/verify/$agentId'
+      preLoaderRoute: typeof ApiPublicVerifyAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAgentsIdRoute: typeof AuthenticatedAgentsIdRoute
+  AuthenticatedAgentsNewRoute: typeof AuthenticatedAgentsNewRoute
+  AuthenticatedAgentsIndexRoute: typeof AuthenticatedAgentsIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAgentsIdRoute: AuthenticatedAgentsIdRoute,
+  AuthenticatedAgentsNewRoute: AuthenticatedAgentsNewRoute,
+  AuthenticatedAgentsIndexRoute: AuthenticatedAgentsIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   VerifyAgentIdRoute: VerifyAgentIdRoute,
+  ApiPublicVerifyAgentIdRoute: ApiPublicVerifyAgentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

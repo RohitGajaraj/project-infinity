@@ -52,6 +52,9 @@ function Index() {
           <Link to="/verify/$agentId" params={{ agentId: SAMPLE_AGENT.id }} className="hover:text-foreground">
             Verify an agent
           </Link>
+          <Link to="/agents" className="rounded-md bg-primary px-3.5 py-1.5 text-primary-foreground">
+            Owner console
+          </Link>
         </nav>
       </header>
 
