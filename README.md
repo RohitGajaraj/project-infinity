@@ -1,6 +1,6 @@
 # Project Infinity
 
-> _Last updated: 2026-09-24. Status: **direction chosen, nothing built yet.**_
+> _Last updated: 2026-09-29. Status: **direction changed to the agent trust layer (DIRECTION.md §8); phase 1 in progress.**_
 
 The codebase is an unmodified Lovable TanStack Start scaffold. **The only real content in this repo
 right now is the decision about what to build.** Read these two files before touching code.
