@@ -95,12 +95,54 @@ describe("credential payload", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  test("carries the mandate and the owner accountability flag", () => {
+  test("carries the mandate", () => {
     const p = buildCredentialPayload(AGENT, ORIGIN);
     expect(p.vc.credentialSubject.mandate.monthlySpendLimitUsd).toBe(200);
     expect(p.vc.credentialSubject.mandate.approvalAboveUsd).toBe(50);
-    expect(p.vc.credentialSubject.owner.identityVerified).toBe(true);
     expect(p.vc.credentialSubject.mandate.permissions).toEqual(["Send email", "Book appointments"]);
+  });
+
+  test("a bare owner_verified flag no longer makes the owner verified", () => {
+    // The stored boolean is not evidence. Without an attestation naming an issuer,
+    // a method and a date, the credential must say the identity was not checked.
+    const p = buildCredentialPayload({ ...AGENT, owner_verified: true }, ORIGIN);
+    expect(p.vc.credentialSubject.owner.identityVerified).toBe(false);
+    expect(p.vc.credentialSubject.owner.attestation.assurance).toBe("none");
+    expect(p.vc.credentialSubject.owner.attestation.issuer).toBe("self_declared");
+  });
+
+  test("a real attestation is carried with its issuer, method and date", () => {
+    const p = buildCredentialPayload(
+      {
+        ...AGENT,
+        owner_attestation_issuer: "didit",
+        owner_attestation_method: "government_id_and_liveness",
+        owner_attestation_assurance: "high",
+        owner_attestation_verified_at: "2026-09-20T00:00:00.000Z",
+      },
+      ORIGIN,
+    );
+    const att = p.vc.credentialSubject.owner.attestation;
+    expect(att.issuer).toBe("didit");
+    expect(att.method).toBe("government_id_and_liveness");
+    expect(att.assurance).toBe("high");
+    expect(att.verifiedAt).toBe("2026-09-20T00:00:00.000Z");
+    expect(p.vc.credentialSubject.owner.identityVerified).toBe(true);
+  });
+
+  test("the attestation is labelled operator-asserted, so nobody mistakes it for checkable", () => {
+    // The signature is verifiable offline; this claim is not. Saying so inside the
+    // signed payload is the only way a verifier learns the difference.
+    const p = buildCredentialPayload(AGENT, ORIGIN);
+    expect(p.vc.credentialSubject.owner.attestation.operatorAsserted).toBe(true);
+  });
+
+  test("a malformed attestation degrades to unverified rather than being trusted", () => {
+    const p = buildCredentialPayload(
+      { ...AGENT, owner_attestation_issuer: "acme-corp", owner_attestation_assurance: "high" },
+      ORIGIN,
+    );
+    expect(p.vc.credentialSubject.owner.attestation.assurance).toBe("none");
   });
 
   test("points at a live status endpoint, since signatures cannot express revocation", () => {

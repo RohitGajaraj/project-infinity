@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as OpenapiDotjsonRouteImport } from './routes/openapi[.]json'
 import { Route as DotwellKnownInfinityIssuerDotjsonRouteImport } from './routes/[.]well-known.infinity-issuer[.]json'
 import { Route as DotwellKnownJwksDotjsonRouteImport } from './routes/[.]well-known.jwks[.]json'
 import { Route as VerifyAgentIdRouteImport } from './routes/verify.$agentId'
@@ -37,9 +39,19 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpenapiDotjsonRoute = OpenapiDotjsonRouteImport.update({
+  id: '/openapi.json',
+  path: '/openapi.json',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotwellKnownInfinityIssuerDotjsonRoute =
@@ -94,7 +106,9 @@ const ApiPublicVerifyAgentIdRoute = ApiPublicVerifyAgentIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
+  '/openapi.json': typeof OpenapiDotjsonRoute
   '/.well-known/infinity-issuer.json': typeof DotwellKnownInfinityIssuerDotjsonRoute
   '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
@@ -108,7 +122,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
+  '/openapi.json': typeof OpenapiDotjsonRoute
   '/.well-known/infinity-issuer.json': typeof DotwellKnownInfinityIssuerDotjsonRoute
   '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
@@ -124,7 +140,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
+  '/openapi.json': typeof OpenapiDotjsonRoute
   '/.well-known/infinity-issuer.json': typeof DotwellKnownInfinityIssuerDotjsonRoute
   '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
@@ -140,7 +158,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/llms.txt'
     | '/mcp'
+    | '/openapi.json'
     | '/.well-known/infinity-issuer.json'
     | '/.well-known/jwks.json'
     | '/verify/$agentId'
@@ -154,7 +174,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/llms.txt'
     | '/mcp'
+    | '/openapi.json'
     | '/.well-known/infinity-issuer.json'
     | '/.well-known/jwks.json'
     | '/verify/$agentId'
@@ -169,7 +191,9 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/llms.txt'
     | '/mcp'
+    | '/openapi.json'
     | '/.well-known/infinity-issuer.json'
     | '/.well-known/jwks.json'
     | '/verify/$agentId'
@@ -185,7 +209,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
   McpRoute: typeof McpRoute
+  OpenapiDotjsonRoute: typeof OpenapiDotjsonRoute
   DotwellKnownInfinityIssuerDotjsonRoute: typeof DotwellKnownInfinityIssuerDotjsonRoute
   DotwellKnownJwksDotjsonRoute: typeof DotwellKnownJwksDotjsonRoute
   VerifyAgentIdRoute: typeof VerifyAgentIdRoute
@@ -217,11 +243,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/openapi.json': {
+      id: '/openapi.json'
+      path: '/openapi.json'
+      fullPath: '/openapi.json'
+      preLoaderRoute: typeof OpenapiDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/infinity-issuer.json': {
@@ -309,7 +349,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
   McpRoute: McpRoute,
+  OpenapiDotjsonRoute: OpenapiDotjsonRoute,
   DotwellKnownInfinityIssuerDotjsonRoute:
     DotwellKnownInfinityIssuerDotjsonRoute,
   DotwellKnownJwksDotjsonRoute: DotwellKnownJwksDotjsonRoute,

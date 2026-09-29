@@ -69,3 +69,13 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 - **Sell where the business wants the transaction.** Shopify-class merchants and the long tail, not Amazon-class gatekeepers who block for commercial reasons a credential cannot fix.
 - **Never lead with "identity".** Lead with the outcome: the agent stops getting blocked, or for a consumer, it cannot overspend and can be killed instantly.
 - **A self-issued reputation score is not neutral.** Grading our own customers repeats the flaw we say makes a maker-issued ID worthless. Any trust score must rest on cross-company, independently attested history.
+
+## Scope and market (founder direction, 2026-09-29)
+
+- **Global-first, not India-first.** Adoption is expected to arrive from Western markets, so provider and design choices are decided on **breadth of coverage and self-serve access**, with India included rather than centred. Regional depth is a tie-breaker, never the reason.
+- **Stripe Identity is ruled out permanently**, and not on geography: their supported-use-cases terms prohibit reselling ID verification when that is your primary business, which is what Infinity is. Revisit only with written clearance from Stripe.
+- **Everything we build is for agents.** Owner identity verification exists solely as **one field inside the agent's credential** — brokered to a provider, one screen, a verdict stored. We never build KYC dashboards, never handle documents, never store PII, and never sell verification to humans. If `identity-provider.server.ts` starts growing flows, it has drifted.
+- **Why that field is not a drift:** without an accountable party, the credential asserts only that an agent exists, which is the self-issued position we call worthless and the reason Amazon gave for blocking Muse. The attestation is the accountability anchor, not a product line.
+- **An attestation is operator-asserted and must always say so.** It carries issuer, method, assurance and date, plus `operatorAsserted: true`. A bare `verified` boolean is unfalsifiable, and a verifier must never be led to think it checked this claim itself. Same discipline as signing versus hash-chaining.
+- **A provider verdict alone does not make an owner verified.** `verify_agent` derives standing from a live, unrevoked, unexpired attestation, so a lapsed check stops reading as verified with no backfill.
+- **PII stripping is implemented, not asserted.** Provider webhooks carry extracted personal data by default; `stripPii` redacts it at the boundary before anything is logged or stored, matching on normalised field names so camelCase variants cannot slip through.

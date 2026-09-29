@@ -1092,3 +1092,110 @@ produce another half-built platform. It is recorded here so it is not forgotten 
 one layer a startup can legitimately occupy, because Anthropic made it open and every agent speaks it.
 **Building our MCP surface well is therefore also the correct agentic-commerce move** — it is how an
 agent carrying our credential reaches a merchant at all. No new scope; the same work, better aimed.
+
+---
+
+## 15. Owner attestations, and two founder corrections, 2026-09-29
+
+### 15.1 Correction: global-first, not India-first
+
+Provider research came back weighted toward Indian coverage and I let that skew the
+recommendation. **Corrected: coverage breadth and self-serve access decide it,**
+with India included rather than centred, because adoption is expected from Western
+markets. The conclusion survives the reweighting — the chosen provider is the only
+one integrable with no sales call and no monthly minimum — but the reasoning is now
+the right way round.
+
+**One finding is geography-independent and worth isolating: Stripe Identity is
+disqualified permanently.** Their supported-use-cases terms prohibit reselling ID
+verification where that is your primary business, and Infinity sells verification
+infrastructure. India not being a supported business location was the lesser
+problem. Recorded in AGENTS.md so nobody reaches for the familiar stack later.
+
+### 15.2 Correction: this is for agents, and where the line actually falls
+
+Founder flagged that owner identity verification looked like drift into human
+identity. **Half right, and the distinction is worth stating precisely.**
+
+**Agreed and enforced:** we build no KYC product. No dashboards, no document
+handling, no PII storage, nothing sold to humans. One screen, brokered out.
+
+**Where I pushed back:** the owner attestation is not a human-identity feature, it
+is the **accountability anchor that gives the agent's credential its value**. Remove
+it and the credential asserts only *this agent exists* — which is precisely
+AliasKit's self-issued position (§12.2) and precisely the reason Amazon gave for
+blocking Muse: **identity concealment** (§11.1). Both Persona (with AstraSync) and
+Sumsub (with Sumvin) shipped Know Your Agent in 2026 on exactly this premise, an
+agent identifier tracing back to a verified entity.
+
+So it lives as **one field inside the agent's credential** and nothing more. The
+guardrail is in AGENTS.md, including the tripwire: if the provider adapter starts
+growing flows, it has drifted.
+
+### 15.3 What shipped, closing §9 G4
+
+`profiles.identity_verified` was a boolean nobody could set, so every credential
+read "identity not yet checked" and the accountable-owner claim was unbacked.
+
+**An attestation replaces the boolean**, because "verified" alone is unfalsifiable —
+verified by whom, how, and when? A business deciding on a $5,000 purchase needs to
+know it was a government ID with liveness checked last week, not a self-declaration
+from two years ago. Each attestation carries **issuer, method, assurance level and
+date**, and the credential carries all four.
+
+Three properties worth recording:
+
+- **Operator-asserted, and labelled.** The credential marks the attestation
+  `operatorAsserted: true`. Unlike the EdDSA signature, no third party can check it
+  offline; it rests on our word plus the provider's. Saying so inside the signed
+  payload is the only way a verifier learns the difference — the same discipline
+  already enforced between signing and hash-chaining.
+- **Assurance is a level, not a flag.** `none` / `basic` / `substantial` / `high`,
+  eIDAS-style, so a verifier sets its own bar rather than accepting ours.
+  `assuranceForMethod` stops an issuer over-claiming, and a malformed or unknown
+  issuer degrades to unverified instead of being trusted.
+- **Standing is derived, never stored.** `verify_agent` resolves the live,
+  unrevoked, unexpired attestation, so a lapsed check stops reading as verified with
+  no backfill. A bare `owner_verified: true` no longer makes a credential claim
+  verified — there is a test asserting exactly that.
+
+**PII never enters the database.** Provider webhooks carry extracted personal data
+by default, so `stripPii` redacts at the boundary, matching on normalised field
+names so `full_name`, `fullName` and `FullName` all collapse to one key. A test
+caught the camelCase hole in the first implementation.
+
+**Provider seam is three operations** (`start`, `parseWebhook`, plus an issuer
+label), so swapping providers is a file rather than a refactor. Unconfigured
+deployments report that verification is unavailable rather than silently marking
+owners verified — the same rule as the issuer key never degrading to unsigned.
+
+### 15.4 Also shipped: agent discovery
+
+`/llms.txt` and `/openapi.json`, finishing the rest of §9 G5. Both matter more than
+docs usually do, because §4 of the brief says agents are the main users: an agent
+that cannot discover how to verify another agent will not do it. `/llms.txt` is
+written for a model — every line an instruction, an endpoint or a constraint — and
+states the proof-of-possession canonical string explicitly, including the warning to
+verify against the key *inside* the credential rather than one handed over
+separately.
+
+### 15.5 Phase-1 gap list, current
+
+| Gap | State |
+| --- | --- |
+| G1 log called "signed" when only chained | **Closed** — signature, signer and nonce columns; forgery path fixed |
+| G2 Ed25519 keypair decorative | **Closed** — proof of possession, verified both directions |
+| G3 no credential, no key set, no offline check | **Closed** |
+| G4 owner identity unsettable | **Closed** — attestations, this section |
+| G5 no machine surface | **Closed** — MCP, `llms.txt`, OpenAPI. SDK package still outstanding |
+| G6 no SQL in repo | **Closed** — `db/baseline.sql` plus migrations |
+| G7 `user_roles` | **Deferred** with a reason, in AGENTS.md |
+| G8 `owner_id` spoofable | **Closed** — pinned, verified live with a 403 |
+| G9 fake sample agent | **Closed** |
+| G10 waitlist discarded emails | **Closed** |
+| G11 lint errors, no tests | **Closed** — 0 lint errors, 122 unit tests, 40 live e2e checks |
+| G12 README rot | **Closed** |
+
+**So phase 1's mechanism is done.** What remains is not code: the §10.7 test of
+whether a business will complete the handshake. That is the next real milestone, and
+no further feature work should precede it.

@@ -10,6 +10,7 @@
  */
 
 import { decodeCompactJws, verifyCompactJws, type Jwks, type JwsHeader } from "./jws";
+import { attestationFromRow, type OwnerAttestation } from "./identity";
 
 export const CREDENTIAL_TYP = "vc+jwt";
 export const CREDENTIAL_TYPE = "AgentIdentityCredential";
@@ -28,8 +29,17 @@ export type AgentCredentialSubject = {
   publicKey: string;
   owner: {
     name: string;
-    /** Whether the accountable human or company passed an identity check. */
+    /**
+     * Retained for compatibility and convenience. Derived from
+     * `attestation.assurance !== "none"` — prefer the attestation, which says by
+     * whom, how and when.
+     */
     identityVerified: boolean;
+    /**
+     * What was actually checked about the accountable party. Operator-asserted:
+     * a verifier cannot confirm this offline the way it can confirm the signature.
+     */
+    attestation: OwnerAttestation;
   };
   mandate: {
     permissions: string[];
@@ -72,6 +82,12 @@ export type CredentialSource = {
   approval_above: number;
   created_at: string;
   expires_at: string;
+  // Attestation columns, appended by 20260929210000_owner_attestations.sql.
+  // Optional so a caller reading an older row still compiles.
+  owner_attestation_issuer?: string | null;
+  owner_attestation_method?: string | null;
+  owner_attestation_assurance?: string | null;
+  owner_attestation_verified_at?: string | null;
 };
 
 function toSeconds(iso: string): number {
@@ -89,6 +105,7 @@ export function buildCredentialPayload(
   const issuer = origin;
   const iat = toSeconds(agent.created_at);
   const exp = toSeconds(agent.expires_at);
+  const attestation = attestationFromRow(agent);
   const subject: AgentCredentialSubject = {
     id: agent.public_id,
     name: agent.name,
@@ -96,7 +113,9 @@ export function buildCredentialPayload(
     publicKey: agent.public_key,
     owner: {
       name: agent.owner_name ?? "Unnamed owner",
-      identityVerified: agent.owner_verified,
+      // Derived, so the boolean can never disagree with the attestation beside it.
+      identityVerified: attestation.assurance !== "none",
+      attestation,
     },
     mandate: {
       permissions: agent.permissions ?? [],
