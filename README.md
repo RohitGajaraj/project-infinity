@@ -29,6 +29,15 @@ tax the exact behaviour the network needs.
 | [`DIRECTION.md`](./DIRECTION.md) | **§8 is the approved plan** (supersedes §0 and §4). **§9 is the phase-1 gap analysis and build order. §10 settles who the customer is and how the verification handshake works — read it before building anything.** §1–§7 are the reasoning and ruled-out directions, kept as evidence |
 | [`AGENTS.md`](./AGENTS.md) | Technical decisions that bind. One rule plus a one-line reason |
 | [`MARKETPLACE-REVIEW.md`](./MARKETPLACE-REVIEW.md) | Why an agent marketplace was declined, with sizing and the player landscape. Its §6 finding — supply is oversupplied, demand is scarce — drives the phase-1 metric |
+
+**Why this exists, in one piece of evidence** (`DIRECTION.md` §11.1): Amazon blocked Meta's Muse agent
+from its store on 2026-09-20, citing **identity concealment** — and businesses hang up on Muse's phone
+calls often enough that Meta now pays trained humans to place them instead. The best-funded consumer
+agent in the world is being blocked for want of a credential a stranger will accept.
+
+**Who to sell to** (§11.2): Shopify-class merchants and the long tail, who *want* the transaction and
+only need to know who is on the other end. **Never Amazon-class gatekeepers** — they block for
+commercial reasons, and no credential fixes that.
 | `.lovable/plan/*.md` | The archived approved plan, verbatim |
 
 ## Phases — one at a time, each must work before the next starts

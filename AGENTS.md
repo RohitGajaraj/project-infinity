@@ -59,3 +59,11 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 - **Verification is not authorization.** Inside the mandate is instant and needs no human, because the signed mandate *is* a pre-authorization. Outside it requires an owner decision and yields a signed approval receipt naming that specific action. Never make a verifier wait on a human to learn who an agent is.
 - Ride existing standards rather than inventing a format: **RFC 9421 HTTP Message Signatures** for the envelope, DPoP-style proof of possession, and stay compatible with **Web Bot Auth**. Neutrality means being adoptable without adopting us.
 - The three facts a verifier learns must stay independently checkable: *we issued the mandate* (signature), *the agent holds the key* (challenge response), *it is still live* (one status call). Only the third may require us.
+
+## Positioning guardrails (evidence: DIRECTION.md §11)
+
+- **Disclosure, never concealment.** Amazon blocked Meta's Muse citing *identity concealment*. Never build a feature whose purpose is to help an agent pass as human. The claim is "this is an agent, acting for a named accountable person, within these limits" — not "this is a person".
+- **Ride UCP; never compete with it.** Shopify's agent profile is self-declared and answers *what can this agent do*. We answer *who is liable if it goes wrong*. Emit a UCP-compatible profile that references our credential.
+- **Sell where the business wants the transaction.** Shopify-class merchants and the long tail, not Amazon-class gatekeepers who block for commercial reasons a credential cannot fix.
+- **Never lead with "identity".** Lead with the outcome: the agent stops getting blocked, or for a consumer, it cannot overspend and can be killed instantly.
+- **A self-issued reputation score is not neutral.** Grading our own customers repeats the flaw we say makes a maker-issued ID worthless. Any trust score must rest on cross-company, independently attested history.

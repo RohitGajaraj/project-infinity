@@ -399,6 +399,10 @@ and the verifier's pain is probabilistic — nobody has a budget line called "ag
 whereas the agent's side has an immediate, concrete problem: **its agent gets blocked and the product
 fails.** Pain that blocks a product converts; pain that might cost you later does not.
 
+> **[FACT, added 2026-09-29]** That last claim is no longer an inference. Amazon blocked Meta's Muse
+> from its store on 2026-09-20 citing *identity concealment*, and businesses hang up on Muse's phone
+> calls often enough that Meta now routes them to paid human agents. Evidence and sources: **§11.1**.
+
 ### 10.2 So who is the customer, precisely
 
 **The customer is the accountable party.** Same product, same credential, two billing relationships:
@@ -547,3 +551,150 @@ Recorded now so it is not rationalised away later.
   This is the two-sided cold start that `MARKETPLACE-REVIEW.md` §6 warned about, and it is the single
   most likely way this fails. The mitigation is that verification must be *free and one file*, and that
   we go first in one high-traffic place rather than everywhere.
+
+---
+
+## 11. Evidence scan: Muse, Instinct, Wajo, and who else is in this space, 2026-09-29
+
+> Founder steer: take references from Instinct, Muse and Wajo — their sites, press and user feedback.
+> This section is the result. It **upgrades the core assumption of §10 to fact**, sharpens who the first
+> verifier is, and records one direct competitor found in the process. Content rephrased from sources
+> for licensing compliance.
+
+### 11.1 The thesis is no longer an inference. Two named, dated events prove it.
+
+§10.1 argued that the agent's side has the urgent pain because *its agent gets blocked and the product
+fails.* That was labelled [INFERENCE]. It is now **[FACT]**, twice over, and both involve Meta's Muse
+— the best-resourced consumer agent in existence, launched 2026-09-08.
+
+**1. Amazon blocked Muse from its store on 2026-09-20, and the stated reasons are our product.**
+Amazon said it was not told in advance, did not authorise the activity, and that **Muse does not
+identify itself**, appears to capture and store customer credentials, and scrapes account data
+([Business Insider](https://www.businessinsider.com/amazon-blocks-meta-muse-ai-agent-shopping-site-2026-9/),
+[GeekWire](https://www.geekwire.com/2026/amazon-blocks-metas-muse-ai-assistant-in-new-standoff-over-agentic-shopping/)).
+Forbes reported the objection as **unauthorised agent access, identity concealment and credential
+collection**. This is the first time a major retailer treated a mainstream consumer agent as an
+intruder. Amazon has been at this for a year: it sued Perplexity over Comet and moved to block Google's
+and OpenAI's shopping agents.
+
+**2. Businesses hang up on Muse's phone calls, and Meta's fix was to hire humans.** Internal testing
+found companies ending calls once they realised an AI was on the line — one employee reported his
+insurer kept hanging up on Muse. Meta's response was to route requests to **trained human agents who
+place the call instead**
+([technology.org](https://www.technology.org/2026/09/23/meta-muse-human-concierge-ai-phone-calls/)).
+Wajo's Fo shows the same shape from the other side: 71% task completion, with **escalation to a human**
+when it cannot finish ([KuCoin](https://www.kucoin.com/news/flash/former-google-deepmind-engineer-launches-ai-agent-fo-with-71-task-success-rate)).
+
+**[INFERENCE] Meta is paying humans because it has no trust layer.** That is the cost of the missing
+layer, quantified in headcount by the company least likely to be short of engineering. It is the
+clearest demand signal in this file.
+
+**Supporting context.** Consumer sentiment is actively hostile: preference for a human rose to 85%
+against 5% for AI, and 31% say they would hang up if connected to AI
+([PRNewswire](https://www.prnewswire.com/news-releases/ai-backlash-grows-across-us-uk-and-canada-more-customers-reject-bots-for-human-support-in-2026-302770476.html)).
+**[INFERENCE]** This is why "hide that it's an agent" is a dead end and disclosure is the only durable
+posture: the winning message is not *this is a human*, it is *this is an agent, acting for a named
+accountable person, within these limits, and you can check it in one call.*
+
+### 11.2 The decisive correction: Shopify said yes where Amazon said no
+
+**[FACT]** The same week Amazon blocked Muse, **Shopify opened checkout to browser-based agents**
+(2026-09-28), and both Muse and Instinct already hold **direct partnerships** with Shopify
+([TechCrunch](https://techcrunch.com/2026/09/28/shopify-opens-checkout-to-browser-based-ai-agents/)).
+Shopify reports AI-driven traffic up 8x year over year in Q1 2026 and orders from AI-powered search up
+nearly 13x.
+
+**[INFERENCE] This splits the verifier market cleanly, and it is the most useful targeting conclusion
+in this file.**
+
+| | Motive for blocking | Does a neutral credential help? |
+| --- | --- | --- |
+| **Amazon-class gatekeepers** | Commercial — they own the customer relationship and the ad revenue. Forbes framed it as a *$68B reason*, and noted Amazon invokes standards it does not apply to its own shopping agent | **No.** Identity was the stated reason, not the real one. Do not chase these |
+| **Shopify-class merchants** (millions) | Trust and liability — they *want* the sale | **Yes.** This is the market |
+
+**So do not sell to the gatekeepers.** Sell where the business wants the transaction and only needs to
+know who is on the other end. The restaurant losing revenue to unanswered phones and the merchant who
+wants the order are aligned with us; Amazon is not, and no amount of cryptography changes that.
+
+### 11.3 But Shopify also shows the absorption risk, and where we fit inside it
+
+**[FACT]** Shopify has shipped an **agent profile**: a JSON document by which *"your agent identifies
+itself to merchants"*, declaring UCP version and capabilities
+([shopify.dev](https://shopify.dev/docs/agents/get-started/profile)). It sits inside the **Universal
+Commerce Protocol**, co-developed with Google and endorsed by 20+ retailers and platforms, alongside a
+hosted MCP server and WebMCP. Shopify also pushed `llms.txt`, `agents.md` and agentic discovery to
+every storefront around May 2026.
+
+**[INFERENCE] Read this precisely, because it looks like our idea and is not.** The Shopify profile is
+**self-declared**: it states what an agent *claims* about itself. It carries no independent issuer, no
+KYC'd accountable owner, no signed mandate, and no revocation. It answers *what can this agent do?* and
+leaves *who is liable if it goes wrong?* unanswered — which is exactly the gap Amazon named.
+
+**Our slot is therefore inside UCP, not against it.** Infinity is the independent issuer whose
+credential a UCP agent profile references. Competing with UCP would be the mistake the previous project
+made: standing in front of a standard that platform owners have already agreed on.
+
+**And the network argument is now concrete.** Muse↔Shopify and Instinct↔Shopify are **bilateral deals**.
+Bilateral does not scale: *N* agent platforms × *M* merchant networks is N×M negotiations. A neutral
+credential collapses that to **N + M**. That is the whole reason a neutral party exists, and it is now
+observable rather than theoretical.
+
+### 11.4 Competitor found: AliasKit, and it is close
+
+**[FACT]** [AliasKit](https://www.aliaskit.com/) sells "digital identity for AI agents": a real email
+inbox, phone number, virtual card and TOTP codes via one API call. It ships **DID:web documents,
+Verifiable Credentials as VC-JWT, a public JWKS endpoint**, ES256/RS256 agent tokens, HMAC-signed
+webhooks, per-organisation isolation, LangChain adapters, ERC-8004 on-chain linking, and a
+**reputation score with bronze→platinum tiers driving allow / review / deny decisions**. Ten free
+identities, five-minute setup.
+
+**That overlaps phases 1 through 5 of our plan, including the credential format we just built and the
+trust score we had scheduled for phase 5.** Recording that plainly rather than discovering it later.
+
+**Where it is genuinely different, and where our position holds [INFERENCE]:**
+
+- **They serve the agent; we serve the relationship.** Their framing is *"your agent operates on the
+  internet like a human remote worker"* and their tooling is aimed at "teams shipping AI agents" —
+  supply-side capability. Ours is aimed at making a *business* accept an agent.
+- **Their reputation is self-issued.** AliasKit scores agents on activity AliasKit observes. That is a
+  vendor grading its own customers, which is the same structural problem as a maker-issued ID (§8.2).
+- **No accountable human.** An AliasKit identity belongs to an organisation's API key. Ours binds to a
+  KYC'd person or company who is liable, which is what an insurer and a merchant actually need.
+- **No mandate and no approval receipt.** Nothing in their surface pre-authorises a *specific* action
+  or proves a human approved an exception. That is §10.5, and it is where our defensibility compounds.
+- **Philosophical, and the market has already ruled on it.** "Operates like a human remote worker" and
+  alias inboxes for signups is *blending in*. Amazon blocked Muse for **identity concealment**.
+  Disclosure plus accountability is the side of this that regulators and merchants are moving toward.
+
+**[RISK]** If they add an owner-KYC step and a verifier-side surface, the distinction narrows fast.
+Speed on proof-of-possession and the mandate matters more than breadth of capabilities.
+
+### 11.5 Other players, sorted so we do not mistake them for competitors
+
+- **Enterprise agent IAM — crowded, different buyer.** Keycard ($38M, ephemeral task-scoped agent
+  credentials), Aembit, WorkOS, Okta/Auth0 for agents. These secure *workloads inside a company*. They
+  do not issue a credential a stranger accepts. Not our market, and consistent with the earlier ruling
+  to avoid machine-identity consolidation.
+- **Owner KYC — suppliers, not rivals.** Stripe Identity, Persona, Didit (~$0.30/check). We broker one
+  of these for §9 G4; we never build it.
+- **Bot classification — a rail to ride.** Cloudflare Web Bot Auth. Tells a site a request came from a
+  known agent; cannot say who is liable or that a human approved it.
+
+### 11.6 What this changes in the plan
+
+1. **Keep the build order from §10.7.** Proof of possession is still next, and 11.1 makes it more
+   urgent, not less: the reason Amazon gave was identity, and a self-declared profile does not answer it.
+2. **Target Shopify-class merchants and the long tail, never Amazon-class gatekeepers** (11.2). Update
+   any outreach list accordingly.
+3. **Emit a UCP-compatible agent profile that references our credential** (11.3). Added to the phase-1
+   remainder, after proof of possession. Ride the standard.
+4. **Phone is higher-value than its phase-3 slot suggests** (11.1). The hang-up problem is documented
+   and Meta is paying humans for it. Not reordering yet — Agent ID must be solid first, per the founder's
+   one-thing-at-a-time rule — but the moment phase 1 closes, **phone should be reconsidered ahead of
+   email**, because that is where the evidenced pain is.
+5. **B2C messaging is confirmed by user reports.** Wired on Instinct: it saved $550, **wasted $64**, and
+   "might be a security nightmare"; Instinct's inbox access is drawing privacy scrutiny. That is
+   precisely the §10.6 purchase — a hard cap, an off switch, and receipts — described by a user in the
+   wild rather than assumed by us.
+6. **Do not lead with "identity."** Lead with the outcome: *your agent stops getting blocked*, or for
+   consumers, *it cannot spend more than this and you can kill it instantly.*
