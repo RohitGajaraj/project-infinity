@@ -1,7 +1,9 @@
 # Project Infinity
 
-> _Last updated: 2026-09-29. Status: **phase-1 mechanism works end to end. Positioning is BLOCKED
-> pending a founder decision — see [`DIRECTION.md` §12](./DIRECTION.md).**_
+> _Last updated: 2026-09-29. Status: **Agent ID + the MCP surface work end to end — an agent can now
+> use Infinity. 100 unit tests, 40 live end-to-end checks (`bun run e2e`).** Remaining phase-1 gap:
+> owner identity verification ([`DIRECTION.md` §9](./DIRECTION.md) G4). Focus is deliberately narrow —
+> see §14.4._
 
 > [!WARNING]
 > **Competitive finding, 2026-09-29.** Baselayer announced a **$35M Series A on 2026-09-22** and

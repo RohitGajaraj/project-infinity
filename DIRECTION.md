@@ -330,7 +330,7 @@ A premium, calm feel like what Anthropic, OpenAI or Google ship: a warm near-whi
 | **G2** | **The Ed25519 keypair is decorative.** Nothing verifies a signature anywhere. No `sign_action`. The secret is generated, shown once, never used by any code path | "Every action carries a signature anyone can check" is currently false |
 | **G3** | **No Infinity credential, no Infinity signing key, no published JWKS, no offline verification.** A business "verifies" by querying our database and trusting the reply | This is the posture we say makes a maker-issued ID untrustworthy. **The neutrality claim has no cryptographic backing.** §7.6 of the brief promises exactly this and it is absent. Highest-priority item |
 | **G4** | **`profiles.identity_verified` is a boolean with no flow to set it**, not even a placeholder interface | Every agent reads "identity check pending"; "tied to a real, accountable human" is unbacked |
-| **G5** | **No machine surface at all:** no `/mcp`, no OpenAPI, no `llms.txt`, no SDK, no typed error codes | §4 says agents are the *main* users. An agent cannot currently interact with Infinity in any way. Phase 1 today serves humans only |
+| ~~**G5**~~ | ~~**No machine surface at all**~~ — **CLOSED 2026-09-29.** `/mcp` serves five tools (`whoami`, `get_limits`, `get_credential`, `request_approval`, `verify_agent`) over JSON-RPC with bearer auth; a frozen agent is locked out with 403. Still open: OpenAPI, `llms.txt`, SDK | An agent can now use Infinity. Verified live in `bun run e2e` steps 9–9b |
 | **G6** | **`supabase/migrations/` does not exist.** Zero SQL in the repo; RLS policies, the `chain_event` trigger and the `verify_agent` body are unreadable to us and to any auditor | Contradicts the product's own auditability claim and blocks the stated export-to-self-owned-Supabase goal |
 | **G7** | **No `user_roles` table**, though AGENTS.md and the brief §9 mandate it | Either implement it or delete the rule. An unmet stated rule is worse than no rule |
 | **G8** | **`owner_id` is passed explicitly by the client** on insert (`agents.new.tsx`). Unverified whether RLS forces `owner_id = auth.uid()` | If not forced, a signed-in user can issue an agent owned by someone else. Must be confirmed against the live policy |
@@ -987,3 +987,108 @@ is more likely than a fight, because their receivers need our attestations and w
 3. **Finish making Agent ID solid**, per the founder's one-thing-at-a-time rule: the MCP surface so an
    agent can use Infinity at all, and owner identity behind a real interface (§9 G4, G5).
 4. **Then** the voice rail, assuming step 2 passes.
+
+---
+
+## 14. Baselayer profiled, and the agentic-commerce landscape, 2026-09-29
+
+> Founder lifted the financial-services constraint entirely, parked voice, and set the focus:
+> **Agent ID + the MCP surface, made to actually work, one thing at a time.** This section is
+> intelligence to steer by, not a new direction. Nothing here authorises a pivot.
+
+### 14.1 Baselayer: who they actually are
+
+**[FACT]** Founded **2023** by **Jonathan Awad (CEO)** and **Timothy Hyde (CTO)**, with William Slessman
+named as a third founder in some listings. **New York** (CB Insights lists Chicago — sources conflict;
+press releases say New York). Roughly **$47M raised in total**, including a $20M round before the
+2026-09-22 **$35M Series A led by M13**. One directory claims a 2011 founding date, which is wrong and
+contradicted by every primary source.
+
+**What they were built to do:** automate the fragmented process financial institutions use to **verify
+businesses and assess risk** — KYB and fraud intelligence — reaching 1 in 5 US financial institutions,
+about 2,300 of them. The Agentic Identity Suite, launched alongside the Series A, **extends that existing
+infrastructure to agents**.
+
+**[INFERENCE] How dangerous they are, honestly, and where they are not.**
+
+- **Real strengths:** ~3.5 years of distribution into institutions that already buy identity from them;
+  capital; and the ability to wait, since by their own coverage *nobody is legally required to check yet*.
+- **They are not agent-native.** They are a KYB and fraud-risk company whose agent product is days old,
+  built on a **risk-score-at-transaction-time** data model. Their question is *"should this transaction
+  be allowed?"* Ours is *"what identity and rails does this agent operate under?"* (§13.1).
+- **They will not own a rail.** A fraud-intelligence company does not provision phone numbers, inboxes or
+  cards. That remains the structural gap §13 identified, and three and a half years of KYB history makes
+  it *less* likely they cross it, not more.
+- **Where they will beat us outright:** selling a check to a bank. Do not go there — not because of any
+  constraint (the founder lifted that), but because it is their home ground and we would be the third
+  vendor in a room they already own.
+
+### 14.2 Agentic commerce: the layer cake is already built, and mostly by giants
+
+**[FACT] Six protocols dominate as of 2026, and they sit at different layers rather than competing:**
+
+| Layer | Protocol | Owner | Status |
+| --- | --- | --- | --- |
+| Product discovery | **UCP** | Google, co-developed with Shopify, 20+ endorsers | Live; Shopify shipped it to every storefront |
+| Discovery / feeds | **ACP** | OpenAI + Stripe | **Retreated from checkout in March 2026**; now effectively a product-feed spec. Founding-maintainer control, no foundation yet |
+| Payment authorisation | **AP2** | Google | Donated to the **FIDO Alliance, 2026-04-28** |
+| On-chain settlement | **x402** | Coinbase + Cloudflare | Donated to the **Linux Foundation, 2026-07-14** |
+| Transaction authentication | **TAP** | Visa; plus Mastercard's agentic rules | Live |
+| Tool access | **MCP** | Anthropic | De facto standard |
+
+**[INFERENCE] Read that table as a warning.** Discovery, payment authorisation, settlement and
+authentication are all claimed, and two have already been donated to neutral standards bodies — which is
+what a category looks like once the giants have finished deciding it. **Anything we build that competes
+at these layers loses.** ACP's retreat from checkout is the cautionary detail: OpenAI, with Stripe,
+could not make agent checkout stick and fell back to feeds.
+
+**[FACT] And the walled gardens are gating separately from the open specs:** Shopify Agents, Amazon Buy
+for Me, Google Agentic Checkout and Klarna Agent Mode are gated on merchant participation and platform
+account status. That is §11.2's split again — open rails for merchants who want the sale, closed gardens
+for gatekeepers who want control.
+
+### 14.3 Where agentic commerce is genuinely unsolved
+
+Working through the buying journey, the protocols cover discovery → authorisation → payment →
+fulfilment. **What none of them covers is what happens when the agent gets it wrong.**
+
+- **[FACT]** Card-network chargeback and dispute rules are written around a **human cardholder who
+  authorised a purchase**. In agentic commerce the human authorised a *mandate*, not a transaction.
+- **[FACT]** Users already report the failure: Wired's Instinct review records **$64 wasted** alongside
+  $550 saved, and Forbes reports bill-negotiation and refund-chasing as a leading agent use case — so
+  agents are now on *both* sides of disputes.
+- **[INFERENCE]** So the open question is **liability and recourse**: when an agent buys the wrong thing,
+  overpays, or double-books, who is accountable, what evidence settles it, and who refunds? Identity
+  answers *who acted*. Payment protocols answer *how money moved*. **Nobody has built the layer that
+  answers who is liable and proves it afterwards.**
+
+**[INFERENCE] And we are already accidentally well placed for it**, which is worth recording even though
+we are not building it now. The dispute layer needs exactly four things we have or have specified: the
+**signed mandate** (what the human actually authorised, captured before the purchase), the **chained,
+signed log** (what the agent actually did), the **approval receipt** (proof a human sanctioned an
+exception), and **insurance** priced from that history — phase 5. §0's original insight, *an independent
+party checks work against an expectation recorded in advance*, is a description of a dispute layer.
+
+**Opportunity, stated for later and deliberately not started:** *the accountability and recourse layer for
+agentic commerce.* Not a protocol — protocols are taken. The evidence trail that makes the protocols
+insurable.
+
+**Threats, stated plainly:**
+- **Visa TAP and Mastercard's rules already carry agent identity into the transaction.** If the networks
+  extend into liability — which is their actual business — they own this. That is the single biggest
+  long-term threat to the whole company, larger than Baselayer.
+- **Google owns discovery and payment authorisation** (UCP + AP2 in FIDO). A merchant already
+  implementing both has little appetite for a third integration.
+- **Amazon-class gatekeepers stay closed regardless.** No credential and no protocol changes a commercial
+  refusal (§11.2).
+
+### 14.4 What this changes right now: nothing, and that is the point
+
+The focus stays **Agent ID + the MCP surface, made to work.** Supaprod's documented failure was breadth
+substituting for depth, and agentic commerce is exactly the kind of large adjacent opportunity that would
+produce another half-built platform. It is recorded here so it is not forgotten and not started.
+
+**One thing does change, and it is free:** MCP is the tool layer of the agentic-commerce stack and the
+one layer a startup can legitimately occupy, because Anthropic made it open and every agent speaks it.
+**Building our MCP surface well is therefore also the correct agentic-commerce move** — it is how an
+agent carrying our credential reaches a merchant at all. No new scope; the same work, better aimed.

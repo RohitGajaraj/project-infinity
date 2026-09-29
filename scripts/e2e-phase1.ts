@@ -182,7 +182,129 @@ for (let i = 1; i < events.length; i++) {
 check("every entry links to the previous hash", linked);
 for (const e of events) console.log(`        ${e.kind.padEnd(10)} ${e.hash.slice(0, 16)}…`);
 
-step("9. Anonymous callers must not read the tables directly");
+// ------------------------------------------------------------------ 9. MCP
+step("9. The MCP surface, driven as an agent would");
+
+// Step 7 froze this agent, and a frozen agent is correctly locked out of MCP.
+// Unfreeze to exercise the tools, then re-freeze to prove the lockout.
+await fetch(`${SUPABASE_URL}/rest/v1/agents?public_id=eq.${agentId}`, {
+  method: "PATCH",
+  headers: authed,
+  body: JSON.stringify({ status: "valid" }),
+});
+const unfrozen = await fetch(`${APP}/api/public/status/${agentId}`).then((r) => r.json());
+check("owner can unfreeze", unfrozen.usable === true);
+
+let rpcId = 0;
+async function rpc(method: string, params?: unknown, token = agentId) {
+  const res = await fetch(`${APP}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
+  });
+  return {
+    status: res.status,
+    body: (await res.json().catch(() => null)) as never,
+    headers: res.headers,
+  };
+}
+function toolJson(body: { result?: { content?: Array<{ text: string }> } }) {
+  return JSON.parse(body.result!.content![0]!.text);
+}
+
+const init = await rpc("initialize");
+check("initialize succeeds", init.status === 200 && !!init.body.result?.protocolVersion);
+
+const list = await rpc("tools/list");
+const toolNames: string[] = (list.body.result?.tools ?? []).map((t: { name: string }) => t.name);
+check("all five tools are advertised", toolNames.length === 5, toolNames.join(", "));
+
+const who = await rpc("tools/call", { name: "whoami", arguments: {} });
+const whoOut = toolJson(who.body);
+check("whoami returns this agent", whoOut.agent_id === agentId);
+check(
+  "whoami gives a sentence the agent can say aloud",
+  typeof whoOut.how_to_introduce_yourself === "string",
+);
+check(
+  "unverified owner is disclosed rather than hidden",
+  /not completed an identity check/i.test(whoOut.how_to_introduce_yourself),
+);
+
+const lim = toolJson((await rpc("tools/call", { name: "get_limits", arguments: {} })).body);
+check(
+  "get_limits returns the mandate",
+  lim.monthly_spend_limit_usd === 200 && lim.owner_approval_required_above_usd === 50,
+);
+
+const cheap = toolJson(
+  (
+    await rpc("tools/call", {
+      name: "request_approval",
+      arguments: { action: "Book a table", amount_usd: 30 },
+    })
+  ).body,
+);
+check("a pre-authorised amount is approved without waking a human", cheap.status === "approved");
+
+const dear = toolJson(
+  (
+    await rpc("tools/call", {
+      name: "request_approval",
+      arguments: { action: "Buy a laptop", amount_usd: 5000 },
+    })
+  ).body,
+);
+check("an amount over the ceiling is refused, not escalated", dear.status === "denied");
+
+const credViaMcp = toolJson(
+  (await rpc("tools/call", { name: "get_credential", arguments: {} })).body,
+);
+const mcpCheck = await verifyAgentCredential(credViaMcp.credential, jwks, { expectedIssuer: APP });
+check("a credential obtained over MCP verifies offline", mcpCheck.valid);
+
+const fake = toolJson(
+  (await rpc("tools/call", { name: "verify_agent", arguments: { agent_id: "inf_FAKE-FAKE-FAKE" } }))
+    .body,
+);
+check(
+  "verify_agent marks an unknown ID untrustworthy",
+  fake.trustworthy === false && fake.verdict === "unknown",
+);
+
+const self = await rpc("tools/call", { name: "verify_agent", arguments: { agent_id: agentId } });
+check("verify_agent refuses to be used on yourself", self.body.result?.isError === true);
+
+step("9b. MCP authentication");
+const noToken = await fetch(`${APP}/mcp`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+});
+check("a missing token is rejected", noToken.status === 401);
+check(
+  "the response says how to authenticate",
+  (noToken.headers.get("www-authenticate") ?? "").includes("Bearer"),
+);
+
+const badToken = await rpc("tools/list", undefined, "inf_NOT-A-REAL-ID");
+check("an unknown token is rejected", badToken.status === 401);
+
+// Re-freeze: the off switch must cut the agent off from Infinity itself, not just
+// from businesses checking its status.
+await fetch(`${SUPABASE_URL}/rest/v1/agents?public_id=eq.${agentId}`, {
+  method: "PATCH",
+  headers: authed,
+  body: JSON.stringify({ status: "frozen" }),
+});
+const afterFreeze = await rpc("tools/call", { name: "whoami", arguments: {} });
+check(
+  "a frozen agent is locked out of MCP entirely",
+  afterFreeze.status === 403,
+  `HTTP ${afterFreeze.status}`,
+);
+
+step("10. Anonymous callers must not read the tables directly");
 for (const table of ["agents", "profiles", "agent_events"]) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1`, { headers: anon });
   const body = (await r.json()) as unknown;
