@@ -14,13 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_events: {
+        Row: {
+          agent_id: string
+          created_at: string
+          detail: string
+          hash: string
+          id: number
+          kind: string
+          prev_hash: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          detail?: string
+          hash?: string
+          id?: number
+          kind: string
+          prev_hash?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          detail?: string
+          hash?: string
+          id?: number
+          kind?: string
+          prev_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_events_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          approval_above: number
+          created_at: string
+          expires_at: string
+          id: string
+          monthly_spend_limit: number
+          name: string
+          owner_id: string
+          permissions: string[]
+          public_id: string
+          public_key: string
+          source: string
+          status: string
+        }
+        Insert: {
+          approval_above?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          monthly_spend_limit?: number
+          name: string
+          owner_id?: string
+          permissions?: string[]
+          public_id?: string
+          public_key: string
+          source: string
+          status?: string
+        }
+        Update: {
+          approval_above?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          monthly_spend_limit?: number
+          name?: string
+          owner_id?: string
+          permissions?: string[]
+          public_id?: string
+          public_key?: string
+          source?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          identity_verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          id: string
+          identity_verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          identity_verified?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      gen_agent_public_id: { Args: never; Returns: string }
+      verify_agent: {
+        Args: { _public_id: string }
+        Returns: {
+          approval_above: number
+          created_at: string
+          expires_at: string
+          last_hash: string
+          monthly_spend_limit: number
+          name: string
+          owner_name: string
+          owner_verified: boolean
+          permissions: string[]
+          public_id: string
+          public_key: string
+          source: string
+          status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
