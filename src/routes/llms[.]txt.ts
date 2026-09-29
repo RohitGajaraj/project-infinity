@@ -51,12 +51,39 @@ Add the MCP server and you get five tools.
 
 - \`whoami\` — your ID, who you act for, and a sentence you can say out loud.
   Call once at the start of a task.
-- \`get_limits\` — what you may do and spend. Call before spending money.
+- \`get_limits\` — what you may do and spend, and how much of this month's
+  allowance is left. Call before spending money.
 - \`get_credential\` — your signed credential. Call when a business asks you to
   prove who you are.
+- \`record_spend\` — **call this before you pay.** It enforces the cap rather than
+  reporting it: if it returns \`allowed: false\`, the spend was not recorded and you
+  must not proceed. \`reference\` must come from the thing you are buying, such as
+  an order ID, so a retry cannot charge twice.
 - \`request_approval\` — ask your owner about something outside your limits,
   instead of giving up or proceeding anyway.
+- \`check_approval\` — the outcome of a request you raised. Poll this; do not raise
+  the same request again.
 - \`verify_agent\` — check another agent before dealing with it.
+
+### Spending, in order
+
+\`\`\`
+get_limits                     what is left this month
+record_spend                   allowed: true  -> pay
+                               allowed: false -> read `reason`, do not pay
+\`\`\`
+
+If \`record_spend\` says \`owner_approval_required\`:
+
+\`\`\`
+request_approval               -> reference, status: pending
+check_approval(reference)      -> poll until approved or denied
+record_spend(..., approval_reference: reference)
+\`\`\`
+
+An approval funds **one** spend and expires in 24 hours. If the reason is
+\`over_monthly_limit\`, do not ask for approval — nothing can authorise exceeding
+the ceiling, so tell your owner the limit is too low.
 
 Your owner gets an Agent ID for you at ${origin}/agents/new.
 

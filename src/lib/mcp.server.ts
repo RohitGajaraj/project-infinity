@@ -101,9 +101,46 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
       if (!agent) throw new Error("unknown_agent");
       return issueAgentCredential(agent, origin);
     },
+
+    getAllowance: async (publicId: string) => {
+      const { getAllowance } = await import("./mandate.server");
+      return getAllowance(publicId);
+    },
+
+    recordSpend: async (input) => {
+      const { reserveSpend } = await import("./mandate.server");
+      const outcome = await reserveSpend(input);
+      return {
+        allowed: outcome.allowed,
+        reason: outcome.reason,
+        remainingUsd: outcome.remainingUsd,
+      };
+    },
+
+    requestApproval: async (publicId, action, amountUsd) => {
+      const { createApprovalRequest } = await import("./mandate.server");
+      const handle = await createApprovalRequest({
+        publicId,
+        action,
+        ...(amountUsd === undefined ? {} : { amountUsd }),
+      });
+      return { status: handle.status, reference: handle.reference, expiresAt: handle.expiresAt };
+    },
+
+    checkApproval: async (publicId, reference) => {
+      const { getApprovalState } = await import("./mandate.server");
+      const state = await getApprovalState(publicId, reference);
+      if (!state) return null;
+      return {
+        status: state.status,
+        amountUsd: state.amountUsd,
+        action: state.action,
+        consumed: state.consumed,
+      };
+    },
+
     // Intentionally absent: signChallenge. Infinity does not hold the agent's
     // secret key, so it cannot sign on its behalf, and the tool says so rather
-    // than returning a silent null. requestApproval is absent until owner
-    // notification exists — the tool reports that honestly too.
+    // than returning a silent null.
   };
 }

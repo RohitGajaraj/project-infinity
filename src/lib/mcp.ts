@@ -16,6 +16,8 @@
  *    a tool a model misuses is worse than a tool it ignores.
  */
 
+import { decideSpend, describeMandate, type Allowance } from "./mandate";
+
 export const MCP_PROTOCOL_VERSION = "2025-06-18";
 export const SERVER_NAME = "infinity";
 export const SERVER_VERSION = "0.1.0";
@@ -150,6 +152,50 @@ export const TOOLS: ToolDefinition[] = [
     ),
   },
   {
+    name: "check_approval",
+    title: "Check whether my owner decided",
+    description:
+      "Check the outcome of an approval you requested earlier, using the reference request_approval gave you. Call this after request_approval returns `pending`. Do not proceed while the answer is still pending, and do not re-request — that just asks your owner the same question twice.",
+    inputSchema: schema(
+      {
+        reference: {
+          type: "string",
+          description: "The reference from request_approval.",
+          maxLength: 200,
+        },
+      },
+      ["reference"],
+    ),
+  },
+  {
+    name: "record_spend",
+    title: "Record money spent",
+    description:
+      "Record money you are about to spend, and find out whether you are allowed to. This ENFORCES the limit rather than reporting it: if it returns allowed=false, the spend has not been recorded and you must not proceed. Call it BEFORE paying. For an amount above your approval threshold, pass the reference of an approved request. `reference` must be derived from the thing you are paying for, never a random value, so a retry cannot double-charge.",
+    inputSchema: schema(
+      {
+        amount_usd: { type: "number", description: "Amount in USD.", minimum: 0 },
+        detail: {
+          type: "string",
+          description: "What the money is for, as your owner will read it.",
+          maxLength: 300,
+        },
+        reference: {
+          type: "string",
+          description:
+            "Stable idempotency key derived from the purchase, e.g. an order ID. The same reference is only ever charged once.",
+          maxLength: 200,
+        },
+        approval_reference: {
+          type: "string",
+          description: "Required when the amount is above your approval threshold.",
+          maxLength: 200,
+        },
+      },
+      ["amount_usd", "reference"],
+    ),
+  },
+  {
     name: "verify_agent",
     title: "Verify another agent",
     description:
@@ -178,7 +224,22 @@ export type McpContext = {
     publicId: string,
     action: string,
     amountUsd: number | undefined,
-  ) => Promise<{ status: "pending" | "approved" | "denied"; reference: string }>;
+  ) => Promise<{ status: string; reference: string; expiresAt?: string }>;
+  /** Read the outcome of a previously raised approval. */
+  checkApproval?: (
+    publicId: string,
+    reference: string,
+  ) => Promise<{ status: string; amountUsd: number; action: string; consumed: boolean } | null>;
+  /** Current allowance, so guidance reflects what is actually left. */
+  getAllowance?: (publicId: string) => Promise<Allowance | null>;
+  /** Enforce and record a spend. Atomic on the database side. */
+  recordSpend?: (input: {
+    publicId: string;
+    amountUsd: number;
+    detail: string;
+    reference: string;
+    approvalReference?: string;
+  }) => Promise<{ allowed: boolean; reason: string; remainingUsd: number }>;
   issuerOrigin: string;
 };
 
@@ -199,6 +260,19 @@ export type AgentView = {
 };
 
 export type ToolOutcome = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
+
+const REFUSAL_HINTS: Record<string, string> = {
+  over_monthly_limit:
+    "Nothing authorises exceeding the monthly ceiling, not even owner approval. Do not call request_approval; tell your owner the limit is too low.",
+  no_allowance_left: "The monthly allowance is used up. It resets at the start of next month.",
+  owner_approval_required:
+    "Call request_approval, wait for check_approval to return approved, then call record_spend again with approval_reference set.",
+  approval_invalid:
+    "That approval is missing, denied, expired, already used, or for a smaller amount than you are trying to spend.",
+  agent_frozen: "Your owner has frozen you. Stop and report to your owner.",
+  agent_expired: "Your mandate has expired. Ask your owner to reissue it.",
+  invalid_amount: "The amount must be a number of zero or more.",
+};
 
 function text(value: unknown): ToolOutcome {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
@@ -265,7 +339,133 @@ export async function callTool(
     case "get_limits": {
       const agent = await ctx.loadAgent(ctx.agentPublicId);
       if (!agent) return failure("unknown_agent");
-      return text(limitsView(agent));
+
+      // Report what is actually left, not just what was granted. A limit without a
+      // balance is guidance an agent cannot act on.
+      const allowance = ctx.getAllowance ? await ctx.getAllowance(ctx.agentPublicId) : null;
+      return text({
+        ...limitsView(agent),
+        ...(allowance
+          ? {
+              spent_this_month_usd: allowance.spentThisMonthUsd,
+              remaining_this_month_usd: allowance.remainingUsd,
+              period_started: allowance.periodStart,
+              guidance: describeMandate(
+                {
+                  permissions: agent.permissions,
+                  monthlySpendLimitUsd: agent.monthly_spend_limit,
+                  approvalAboveUsd: agent.approval_above,
+                },
+                allowance,
+              ),
+            }
+          : {}),
+      });
+    }
+
+    case "record_spend": {
+      const amountRaw = args["amount_usd"];
+      const amountUsd =
+        typeof amountRaw === "number" && Number.isFinite(amountRaw) ? amountRaw : NaN;
+      const reference = typeof args["reference"] === "string" ? args["reference"].trim() : "";
+      if (Number.isNaN(amountUsd) || amountUsd < 0) {
+        return failure("invalid_params", "`amount_usd` must be a number of zero or more.");
+      }
+      if (!reference) {
+        return failure(
+          "invalid_params",
+          "`reference` is required. Derive it from what you are paying for, e.g. an order ID, so a retry cannot double-charge.",
+        );
+      }
+      if (!ctx.recordSpend) {
+        return failure(
+          "spending_not_available",
+          "Spend enforcement is not enabled on this deployment. Do not proceed with a payment.",
+        );
+      }
+
+      const agent = await ctx.loadAgent(ctx.agentPublicId);
+      if (!agent) return failure("unknown_agent");
+
+      // Decide locally first so a refusal that cannot be fixed by asking is named
+      // as such, rather than surfacing an opaque database reason code.
+      const allowance = ctx.getAllowance ? await ctx.getAllowance(ctx.agentPublicId) : null;
+      if (allowance) {
+        const local = decideSpend(
+          {
+            permissions: agent.permissions,
+            monthlySpendLimitUsd: agent.monthly_spend_limit,
+            approvalAboveUsd: agent.approval_above,
+          },
+          allowance,
+          { amountUsd },
+        );
+        if (local.decision === "refused") {
+          return text({
+            allowed: false,
+            reason: local.reason,
+            remaining_this_month_usd: allowance.remainingUsd,
+            explanation: local.explanation,
+            hint: REFUSAL_HINTS[local.reason] ?? "Do not proceed with this payment.",
+          });
+        }
+      }
+
+      const approvalReference =
+        typeof args["approval_reference"] === "string"
+          ? args["approval_reference"].trim()
+          : undefined;
+
+      const outcome = await ctx.recordSpend({
+        publicId: ctx.agentPublicId,
+        amountUsd,
+        detail: typeof args["detail"] === "string" ? args["detail"].slice(0, 300) : "",
+        reference,
+        ...(approvalReference ? { approvalReference } : {}),
+      });
+
+      return text({
+        allowed: outcome.allowed,
+        reason: outcome.reason,
+        remaining_this_month_usd: outcome.remainingUsd,
+        explanation: outcome.allowed
+          ? outcome.reason === "already_recorded"
+            ? "This reference was already recorded, so nothing was charged again. You may proceed."
+            : "Recorded against your monthly allowance. You may proceed with the payment."
+          : "This spend was NOT recorded. Do not proceed with the payment.",
+        ...(outcome.allowed ? {} : { hint: REFUSAL_HINTS[outcome.reason] ?? "Do not proceed." }),
+      });
+    }
+
+    case "check_approval": {
+      const reference = typeof args["reference"] === "string" ? args["reference"].trim() : "";
+      if (!reference) return failure("invalid_params", "`reference` is required.");
+      if (!ctx.checkApproval) return failure("approvals_not_available");
+
+      const state = await ctx.checkApproval(ctx.agentPublicId, reference);
+      if (!state) {
+        return failure(
+          "unknown_approval",
+          "No approval request with that reference belongs to you.",
+        );
+      }
+
+      return text({
+        status: state.status,
+        action: state.action,
+        amount_usd: state.amountUsd,
+        already_used: state.consumed,
+        explanation:
+          state.status === "approved" && !state.consumed
+            ? "Approved. Call record_spend with this reference as approval_reference. It can only be used once."
+            : state.status === "approved" && state.consumed
+              ? "Approved, but already used for a spend. Request a new approval if you need to spend again."
+              : state.status === "pending"
+                ? "Still waiting on your owner. Do not proceed, and do not raise the request again."
+                : state.status === "denied"
+                  ? "Your owner denied this. Do not proceed, and do not ask again for the same thing."
+                  : "This request expired before your owner answered. Raise a new one if it is still needed.",
+      });
     }
 
     case "get_credential": {
@@ -352,9 +552,10 @@ export async function callTool(
       return text({
         status: decision.status,
         reference: decision.reference,
+        ...(decision.expiresAt ? { expires_at: decision.expiresAt } : {}),
         explanation:
           decision.status === "pending"
-            ? "Your owner has been asked. Do not proceed until this is approved; check back with this reference."
+            ? "Your owner has been asked. Do not proceed. Poll check_approval with this reference; the request expires in 24 hours. Once approved, pass the reference to record_spend as approval_reference."
             : `Your owner ${decision.status} this request.`,
       });
     }

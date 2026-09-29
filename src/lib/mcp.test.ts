@@ -43,12 +43,14 @@ function parse(outcome: { content: Array<{ type: "text"; text: string }> }) {
 }
 
 describe("tool catalogue", () => {
-  test("exposes exactly the five phase-1 tools", () => {
+  test("exposes exactly the phase-1 tools", () => {
     expect(TOOLS.map((t) => t.name)).toEqual([
       "whoami",
       "get_limits",
       "get_credential",
       "request_approval",
+      "check_approval",
+      "record_spend",
       "verify_agent",
     ]);
   });
@@ -216,6 +218,268 @@ describe("request_approval", () => {
   });
 });
 
+describe("record_spend — the tool that makes the mandate real", () => {
+  const allowance = {
+    monthlyLimitUsd: 200,
+    spentThisMonthUsd: 0,
+    remainingUsd: 200,
+    approvalAboveUsd: 50,
+    periodStart: "2026-09-01T00:00:00.000Z",
+  };
+
+  function spendCtx(overrides: Partial<McpContext> = {}) {
+    return ctx({
+      getAllowance: async () => allowance,
+      recordSpend: async ({ amountUsd }) => ({
+        allowed: true,
+        reason: "recorded",
+        remainingUsd: allowance.remainingUsd - amountUsd,
+      }),
+      ...overrides,
+    });
+  }
+
+  test("records a spend inside the mandate and reports the new balance", async () => {
+    const out = parse(
+      await callTool("record_spend", { amount_usd: 30, reference: "order-1" }, spendCtx()),
+    );
+    expect(out.allowed).toBe(true);
+    expect(out.remaining_this_month_usd).toBe(170);
+    expect(out.explanation).toMatch(/may proceed/i);
+  });
+
+  test("refuses above the ceiling WITHOUT calling the database", async () => {
+    // The refusal is knowable locally, and telling the agent to seek approval for
+    // something no approval can grant wastes a human's attention.
+    let called = false;
+    const out = parse(
+      await callTool(
+        "record_spend",
+        { amount_usd: 5000, reference: "order-2" },
+        spendCtx({
+          recordSpend: async () => {
+            called = true;
+            return { allowed: true, reason: "recorded", remainingUsd: 0 };
+          },
+        }),
+      ),
+    );
+    expect(out.allowed).toBe(false);
+    expect(out.reason).toBe("over_monthly_limit");
+    expect(out.hint).toMatch(/Do not call request_approval/i);
+    expect(called).toBe(false);
+  });
+
+  test("refuses when the monthly allowance is exhausted", async () => {
+    const out = parse(
+      await callTool(
+        "record_spend",
+        { amount_usd: 40, reference: "order-3" },
+        spendCtx({
+          getAllowance: async () => ({ ...allowance, spentThisMonthUsd: 190, remainingUsd: 10 }),
+        }),
+      ),
+    );
+    expect(out.allowed).toBe(false);
+    expect(out.reason).toBe("no_allowance_left");
+  });
+
+  test("a database refusal tells the agent NOT to proceed", async () => {
+    // The critical instruction. An agent that pays anyway defeats the whole control.
+    const out = parse(
+      await callTool(
+        "record_spend",
+        { amount_usd: 120, reference: "order-4" },
+        spendCtx({
+          recordSpend: async () => ({
+            allowed: false,
+            reason: "owner_approval_required",
+            remainingUsd: 200,
+          }),
+        }),
+      ),
+    );
+    expect(out.allowed).toBe(false);
+    expect(out.explanation).toMatch(/NOT recorded/);
+    expect(out.explanation).toMatch(/Do not proceed/i);
+    expect(out.hint).toMatch(/request_approval/);
+  });
+
+  test("an idempotent replay is reported as already recorded, not charged again", async () => {
+    const out = parse(
+      await callTool(
+        "record_spend",
+        { amount_usd: 30, reference: "order-1" },
+        spendCtx({
+          recordSpend: async () => ({
+            allowed: true,
+            reason: "already_recorded",
+            remainingUsd: 170,
+          }),
+        }),
+      ),
+    );
+    expect(out.allowed).toBe(true);
+    expect(out.explanation).toMatch(/already recorded/i);
+    expect(out.explanation).toMatch(/nothing was charged again/i);
+  });
+
+  test("requires a reference, because without one a retry double-charges", async () => {
+    const outcome = await callTool("record_spend", { amount_usd: 10 }, spendCtx());
+    expect(outcome.isError).toBe(true);
+    expect(parse(outcome).hint).toMatch(/double-charge/);
+  });
+
+  test("rejects a negative amount", async () => {
+    const outcome = await callTool("record_spend", { amount_usd: -5, reference: "r" }, spendCtx());
+    expect(outcome.isError).toBe(true);
+  });
+
+  test("refuses to proceed at all when enforcement is unavailable", async () => {
+    // Fail closed: an unenforced spend is worse than a blocked one.
+    const outcome = await callTool("record_spend", { amount_usd: 10, reference: "r" }, ctx());
+    expect(outcome.isError).toBe(true);
+    expect(parse(outcome).error).toBe("spending_not_available");
+    expect(parse(outcome).hint).toMatch(/Do not proceed/i);
+  });
+});
+
+describe("approvals, end to end through the tools", () => {
+  test("request_approval returns a reference and tells the agent to poll", async () => {
+    const out = parse(
+      await callTool(
+        "request_approval",
+        { action: "Buy a monitor", amount_usd: 120 },
+        ctx({
+          requestApproval: async () => ({
+            status: "pending",
+            reference: "apr_abc",
+            expiresAt: "2026-09-30T00:00:00.000Z",
+          }),
+        }),
+      ),
+    );
+    expect(out.status).toBe("pending");
+    expect(out.reference).toBe("apr_abc");
+    expect(out.explanation).toMatch(/check_approval/);
+    expect(out.explanation).toMatch(/approval_reference/);
+  });
+
+  test("check_approval on an approved, unused request tells the agent how to spend it", async () => {
+    const out = parse(
+      await callTool(
+        "check_approval",
+        { reference: "apr_abc" },
+        ctx({
+          checkApproval: async () => ({
+            status: "approved",
+            amountUsd: 120,
+            action: "Buy a monitor",
+            consumed: false,
+          }),
+        }),
+      ),
+    );
+    expect(out.status).toBe("approved");
+    expect(out.explanation).toMatch(/record_spend/);
+    expect(out.explanation).toMatch(/only be used once/i);
+  });
+
+  test("an already-used approval is not offered again", async () => {
+    const out = parse(
+      await callTool(
+        "check_approval",
+        { reference: "apr_abc" },
+        ctx({
+          checkApproval: async () => ({
+            status: "approved",
+            amountUsd: 120,
+            action: "x",
+            consumed: true,
+          }),
+        }),
+      ),
+    );
+    expect(out.already_used).toBe(true);
+    expect(out.explanation).toMatch(/already used/i);
+  });
+
+  test("a pending request tells the agent not to ask again", async () => {
+    const out = parse(
+      await callTool(
+        "check_approval",
+        { reference: "apr_abc" },
+        ctx({
+          checkApproval: async () => ({
+            status: "pending",
+            amountUsd: 120,
+            action: "x",
+            consumed: false,
+          }),
+        }),
+      ),
+    );
+    expect(out.explanation).toMatch(/do not raise the request again/i);
+  });
+
+  test("a denial tells the agent not to retry the same thing", async () => {
+    const out = parse(
+      await callTool(
+        "check_approval",
+        { reference: "apr_abc" },
+        ctx({
+          checkApproval: async () => ({
+            status: "denied",
+            amountUsd: 120,
+            action: "x",
+            consumed: false,
+          }),
+        }),
+      ),
+    );
+    expect(out.explanation).toMatch(/do not ask again/i);
+  });
+
+  test("an unknown reference is an error, not a silent pending", async () => {
+    const outcome = await callTool(
+      "check_approval",
+      { reference: "nope" },
+      ctx({ checkApproval: async () => null }),
+    );
+    expect(outcome.isError).toBe(true);
+    expect(parse(outcome).error).toBe("unknown_approval");
+  });
+});
+
+describe("get_limits reports the balance, not just the grant", () => {
+  test("includes spend to date and what remains", async () => {
+    const out = parse(
+      await callTool(
+        "get_limits",
+        {},
+        ctx({
+          getAllowance: async () => ({
+            monthlyLimitUsd: 200,
+            spentThisMonthUsd: 30,
+            remainingUsd: 170,
+            approvalAboveUsd: 50,
+            periodStart: "2026-09-01T00:00:00.000Z",
+          }),
+        }),
+      ),
+    );
+    expect(out.spent_this_month_usd).toBe(30);
+    expect(out.remaining_this_month_usd).toBe(170);
+    expect(out.guidance).toContain("$170");
+  });
+
+  test("still works when allowance tracking is unavailable", async () => {
+    const out = parse(await callTool("get_limits", {}, ctx()));
+    expect(out.monthly_spend_limit_usd).toBe(200);
+    expect(out.remaining_this_month_usd).toBeUndefined();
+  });
+});
+
 describe("verify_agent", () => {
   const OTHER: AgentView = {
     ...LIVE,
@@ -276,7 +540,7 @@ describe("JSON-RPC plumbing", () => {
 
   test("tools/list returns every tool", async () => {
     const res = await handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, ctx());
-    expect((res as { result: { tools: unknown[] } }).result.tools).toHaveLength(5);
+    expect((res as { result: { tools: unknown[] } }).result.tools).toHaveLength(TOOLS.length);
   });
 
   test("tools/call dispatches and wraps the outcome", async () => {
