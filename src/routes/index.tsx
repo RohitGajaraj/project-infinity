@@ -6,17 +6,17 @@ import { joinWaitlist } from "@/lib/waitlist.functions";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Infinity — The passport for AI agents" },
+      { title: "Infinity — Signed mandates for AI agents" },
       {
         name: "description",
         content:
-          "Verified identity, email, phone, wallet and insurance for AI agents from Claude Code, OpenAI and any platform. Neutral, so every business can trust it.",
+          "Signed mandates and proof of possession for AI agents from any platform. Businesses verify credentials free, without an account or API key.",
       },
       { property: "og:title", content: "Infinity — The passport for AI agents" },
       {
         property: "og:description",
         content:
-          "The trust layer for every AI agent. Trusted by businesses because we don't make agents.",
+          "Give your agent a signed mandate it can prove. Any business can check it for free.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -26,7 +26,11 @@ export const Route = createFileRoute("/")({
 });
 
 const layers = [
-  { name: "Identity", desc: "A signed ID tied to a verified human or company.", phase: "Now" },
+  {
+    name: "Identity",
+    desc: "A signed Agent ID and mandate tied to an accountable owner.",
+    phase: "Now",
+  },
   { name: "Email", desc: "Its own inbox. Every message signed.", phase: "Phase 2" },
   {
     name: "Phone",
@@ -50,8 +54,8 @@ const steps = [
   },
   {
     n: "03",
-    t: "Verified everywhere",
-    d: "Any business checks the ID in one call. You can freeze it instantly.",
+    t: "Checked independently",
+    d: "A business verifies the signed mandate, challenges the agent key, and checks its live status for free.",
   },
 ];
 
@@ -103,11 +107,11 @@ function Index() {
             The trust layer for AI agents
           </p>
           <h1 className="mt-6 font-serif text-5xl leading-[1.05] md:text-7xl">
-            The passport, bank account and phone line for <em>every</em> agent.
+            Give your agent a mandate it can <em>prove.</em>
           </h1>
           <p className="mt-6 max-w-lg text-lg text-muted-foreground">
-            Trusted by every business, because we don't make agents. Bring yours from any platform
-            and make it verifiable in minutes.
+            So legitimate agents stop getting blocked. Infinity binds an agent to an accountable
+            owner and signed limits that any business can check for free.
           </p>
           <div className="mt-10 max-w-md">
             {status === "joined" ? (
@@ -166,21 +170,33 @@ function Index() {
       <section className="border-t border-border">
         <div className="mx-auto grid max-w-6xl gap-12 px-6 py-24 md:grid-cols-2">
           <div>
-            <h2 className="font-serif text-4xl">One line for any agent.</h2>
-            <p className="mt-4 max-w-md text-muted-foreground">
-              Infinity works as a standard MCP add-on, so it plugs into Claude Code, ChatGPT and any
-              compatible agent without custom work.
+            <p className="font-mono text-xs uppercase tracking-[0.25em] text-seal">
+              Verifier integration
             </p>
+            <h2 className="mt-3 font-serif text-4xl">Four checks. Only one calls us.</h2>
+            <p className="mt-4 max-w-md text-muted-foreground">
+              Verify the signed credential, its validity window, and the agent's possession proof
+              locally. Call Infinity only to learn whether the owner has switched it off.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3 text-sm">
+              <a
+                href="/api/public/sandbox"
+                className="rounded-md bg-primary px-4 py-2.5 text-primary-foreground"
+              >
+                Test the full handshake
+              </a>
+              <a href="/openapi.json" className="rounded-md border border-border px-4 py-2.5">
+                Open API contract
+              </a>
+            </div>
           </div>
           <pre className="overflow-x-auto rounded-lg border border-border bg-card p-6 font-mono text-sm leading-relaxed">
-            {`{
-  "mcpServers": {
-    "infinity": {
-      "url": "https://infinity.id/mcp",
-      "headers": { "Authorization": "Bearer inf_sk_…" }
-    }
-  }
-}`}
+            {`1  credential signature    offline
+2  validity window         offline
+3  proof of possession     offline
+4  current status          one free call
+
+No account. No API key. No paywall.`}
           </pre>
         </div>
       </section>

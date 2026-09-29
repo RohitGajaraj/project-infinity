@@ -14,7 +14,8 @@
  */
 
 import { verifyAgentCredential } from "../src/lib/credential";
-import { parseStoredPublicKey, verifyRawEd25519, b64uDecode, b64uEncode } from "../src/lib/jws";
+import { b64uDecode, b64uEncode, parseStoredPublicKey } from "../src/lib/jws";
+import { bodyHash, createChallenge, signProof, verifyProof } from "../src/lib/pop";
 
 const SUPABASE_URL = process.env["SUPABASE_URL"];
 const KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
@@ -142,18 +143,18 @@ check(
   bad.valid ? "ACCEPTED" : (bad as { reason: string }).reason,
 );
 
-step("6b. Proof of possession (the gap this phase still has)");
-const challenge = new TextEncoder().encode(`nonce-${Date.now()}`);
-const sig = new Uint8Array(
-  await crypto.subtle.sign({ name: "Ed25519" }, pair.privateKey, challenge),
-);
+step("6b. Proof of possession");
+const proofParts = {
+  nonce: createChallenge(),
+  method: "POST",
+  url: "https://shop.example/checkout",
+  bodySha256: await bodyHash('{"sku":"abc"}'),
+};
+const proofSignature = await signProof(pair.privateKey, proofParts);
 const holds = good.valid
-  ? await verifyRawEd25519(challenge, sig, parseStoredPublicKey(good.subject.publicKey)!)
+  ? (await verifyProof(good.subject.publicKey, proofSignature, proofParts)).ok
   : false;
 check("agent can prove it holds the key named in its credential", holds);
-console.log(
-  "        note: the primitive works, but no endpoint issues challenges yet (DIRECTION.md §10.4)",
-);
 
 // ---------------------------------------------------------------- 7. freeze
 step("7. Off switch reaches the verifier");
@@ -196,12 +197,46 @@ const unfrozen = await fetch(`${APP}/api/public/status/${agentId}`).then((r) => 
 check("owner can unfreeze", unfrozen.usable === true);
 
 let rpcId = 0;
-async function rpc(method: string, params?: unknown, token = agentId) {
-  const res = await fetch(`${APP}/mcp`, {
-    method: "POST",
-    headers: { "content-type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
-  });
+const mcpUrl = `${APP.replace(/\/$/, "")}/mcp`;
+const protectedTools = new Set([
+  "get_limits",
+  "record_spend",
+  "request_approval",
+  "check_approval",
+]);
+async function rpc(method: string, params?: unknown, token = agentId, withProof = true) {
+  const body = JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params });
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+  const tool =
+    method === "tools/call" &&
+    params &&
+    typeof params === "object" &&
+    "name" in params &&
+    typeof params.name === "string"
+      ? params.name
+      : "";
+
+  if (withProof && token === agentId && protectedTools.has(tool)) {
+    const challengeResponse = await fetch(
+      `${APP}/api/public/challenge/${encodeURIComponent(agentId)}`,
+      { method: "POST" },
+    );
+    const challenge = (await challengeResponse.json()) as { nonce?: string };
+    if (challenge.nonce) {
+      headers["Infinity-Nonce"] = challenge.nonce;
+      headers["Infinity-Signature"] = await signProof(pair.privateKey, {
+        nonce: challenge.nonce,
+        method: "POST",
+        url: mcpUrl,
+        bodySha256: await bodyHash(body),
+      });
+    }
+  }
+
+  const res = await fetch(mcpUrl, { method: "POST", headers, body });
   return {
     status: res.status,
     body: (await res.json().catch(() => null)) as never,
@@ -217,7 +252,7 @@ check("initialize succeeds", init.status === 200 && !!init.body.result?.protocol
 
 const list = await rpc("tools/list");
 const toolNames: string[] = (list.body.result?.tools ?? []).map((t: { name: string }) => t.name);
-check("all five tools are advertised", toolNames.length === 5, toolNames.join(", "));
+check("all seven tools are advertised", toolNames.length === 7, toolNames.join(", "));
 
 const who = await rpc("tools/call", { name: "whoami", arguments: {} });
 const whoOut = toolJson(who.body);
@@ -289,6 +324,116 @@ check(
 
 const badToken = await rpc("tools/list", undefined, "inf_NOT-A-REAL-ID");
 check("an unknown token is rejected", badToken.status === 401);
+
+const stolenPublicId = await rpc(
+  "tools/call",
+  {
+    name: "record_spend",
+    arguments: { amount_usd: 1, reference: `attack-${Date.now()}` },
+  },
+  agentId,
+  false,
+);
+check(
+  "a copied public Agent ID cannot mutate allowance without the private key",
+  stolenPublicId.status === 401 && stolenPublicId.body.error?.message === "proof_required",
+);
+
+const allowanceBeforeForgery = await fetch(`${APP}/api/public/allowance/${agentId}`).then((r) =>
+  r.json(),
+);
+const forgedBody = JSON.stringify({
+  jsonrpc: "2.0",
+  id: ++rpcId,
+  method: "tools/call",
+  params: {
+    name: "record_spend",
+    arguments: { amount_usd: 1, reference: `forged-${Date.now()}` },
+  },
+});
+const forgedChallenge = await fetch(`${APP}/api/public/challenge/${encodeURIComponent(agentId)}`, {
+  method: "POST",
+}).then((r) => r.json() as Promise<{ nonce: string }>);
+const forgedProof = await fetch(mcpUrl, {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    Authorization: `Bearer ${agentId}`,
+    "Infinity-Nonce": forgedChallenge.nonce,
+    "Infinity-Signature": "A".repeat(86),
+  },
+  body: forgedBody,
+});
+const allowanceAfterForgery = await fetch(`${APP}/api/public/allowance/${agentId}`).then((r) =>
+  r.json(),
+);
+check("a forged protected-call signature is rejected", forgedProof.status === 401);
+check(
+  "failed proof leaves protected allowance unchanged",
+  allowanceAfterForgery.spent_this_month_usd === allowanceBeforeForgery.spent_this_month_usd,
+);
+
+const replayBody = JSON.stringify({
+  jsonrpc: "2.0",
+  id: ++rpcId,
+  method: "tools/call",
+  params: { name: "get_limits", arguments: {} },
+});
+const replayChallenge = await fetch(`${APP}/api/public/challenge/${encodeURIComponent(agentId)}`, {
+  method: "POST",
+}).then((r) => r.json() as Promise<{ nonce: string }>);
+const replaySignature = await signProof(pair.privateKey, {
+  nonce: replayChallenge.nonce,
+  method: "POST",
+  url: mcpUrl,
+  bodySha256: await bodyHash(replayBody),
+});
+const replayHeaders = {
+  "content-type": "application/json",
+  Authorization: `Bearer ${agentId}`,
+  "Infinity-Nonce": replayChallenge.nonce,
+  "Infinity-Signature": replaySignature,
+};
+const firstUse = await fetch(mcpUrl, { method: "POST", headers: replayHeaders, body: replayBody });
+const secondUse = await fetch(mcpUrl, { method: "POST", headers: replayHeaders, body: replayBody });
+check("a valid protected call succeeds", firstUse.status === 200);
+check("the identical signed request cannot be replayed", secondUse.status === 401);
+
+async function parallelProtectedCall(id: number) {
+  const body = JSON.stringify({
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: { name: "get_limits", arguments: {} },
+  });
+  const challenge = await fetch(`${APP}/api/public/challenge/${encodeURIComponent(agentId)}`, {
+    method: "POST",
+  }).then((r) => r.json() as Promise<{ nonce: string }>);
+  const signature = await signProof(pair.privateKey, {
+    nonce: challenge.nonce,
+    method: "POST",
+    url: mcpUrl,
+    bodySha256: await bodyHash(body),
+  });
+  return fetch(mcpUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${agentId}`,
+      "Infinity-Nonce": challenge.nonce,
+      "Infinity-Signature": signature,
+    },
+    body,
+  });
+}
+const parallel = await Promise.all([
+  parallelProtectedCall(++rpcId),
+  parallelProtectedCall(++rpcId),
+]);
+check(
+  "parallel protected calls receive independent usable nonces",
+  parallel.every((response) => response.status === 200),
+);
 
 // Re-freeze: the off switch must cut the agent off from Infinity itself, not just
 // from businesses checking its status.

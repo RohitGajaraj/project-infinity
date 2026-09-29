@@ -115,6 +115,25 @@ function spec(origin: string) {
           },
         },
       },
+      "/api/public/challenge/{agent_id}": {
+        post: {
+          tags: ["verification"],
+          operationId: "issueAgentChallenge",
+          summary: "Issue a single-use proof-of-possession challenge",
+          description:
+            "Returns a stateless, short-lived nonce containing no authority and revealing no agent status. Sign the canonical request with the private key matching the public key in the credential. After signature and freshness checks, Infinity records the nonce as consumed before a protected MCP call runs, so it cannot be replayed.",
+          parameters: [AGENT_ID_PARAM],
+          responses: {
+            "200": {
+              description:
+                "A stateless challenge valid for two minutes. It reveals nothing about whether the supplied Agent ID exists.",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/Challenge" } },
+              },
+            },
+          },
+        },
+      },
       "/api/public/sandbox": {
         get: {
           tags: ["verification"],
@@ -200,7 +219,11 @@ function spec(origin: string) {
           type: "object",
           properties: {
             agent_id: { type: "string" },
-            status: { type: "string", enum: ["valid", "frozen"] },
+            status: { type: "string", enum: ["valid", "frozen", "expired"] },
+            usable: {
+              type: "boolean",
+              description: "True only when status is valid and the mandate has not expired.",
+            },
             name: { type: "string" },
             source: {
               type: "string",
@@ -290,6 +313,24 @@ function spec(origin: string) {
               },
             },
           },
+        },
+        Challenge: {
+          type: "object",
+          properties: {
+            agent_id: { type: "string" },
+            nonce: { type: "string", description: "Bound to this agent and accepted once." },
+            expires_at: { type: "string", format: "date-time" },
+            proof: {
+              type: "object",
+              properties: {
+                method: { type: "string", const: "POST" },
+                url: { type: "string" },
+                body: { type: "string" },
+                canonical: { type: "string" },
+              },
+            },
+          },
+          required: ["agent_id", "nonce", "expires_at", "proof"],
         },
         SandboxVector: {
           type: "object",

@@ -6,13 +6,19 @@
  * the agent proves possession by signing a challenge, exactly as a business would
  * make it do. That keeps one mechanism for both directions.
  *
- * For phase 1 the bearer token is the agent's public ID, and every tool that
- * reveals anything beyond public information requires a signed proof. Public IDs
- * are not secrets, so a bare ID authenticates nothing on its own — see
- * `authenticateAgent` for exactly what it does and does not grant.
+ * For phase 1 the bearer token is the agent's public ID. It identifies which
+ * public record to load, but it authorizes nothing by itself. Read-only tools
+ * expose only public verification material; every private or state-changing tool
+ * additionally requires a fresh, request-bound Ed25519 proof which is consumed
+ * atomically before dispatch.
  */
 
-import { issueAgentCredential, issuerOrigin } from "./issuer.server";
+import {
+  issueAgentCredential,
+  issueMcpChallenge,
+  issuerOrigin,
+  verifyMcpChallenge,
+} from "./issuer.server";
 import { lookupAgent } from "./verify.server";
 import type { AgentView, McpContext } from "./mcp";
 
@@ -23,11 +29,11 @@ export type AuthOutcome =
 /**
  * Resolve the calling agent from the Authorization header.
  *
- * Deliberately conservative: an Agent ID identifies but does not authorise. Every
- * tool served through this path returns only what the public Verify page already
- * shows, or material the agent itself supplied. Nothing here exposes owner
- * contact details, other agents' private data, or the ability to change state.
- * Widening that requires proof of possession first — recorded in AGENTS.md.
+ * Deliberately conservative: an Agent ID identifies but does not authorise. This
+ * step establishes only which public record the caller names and whether it is
+ * live. The route must call `authorizeMcpToolCall` before dispatching any private
+ * or state-changing tool; keeping that check at the transport boundary prevents
+ * a future dispatcher branch from accidentally treating a public ID as a secret.
  */
 export async function authenticateAgent(request: Request): Promise<AuthOutcome> {
   const header = request.headers.get("authorization") ?? "";
@@ -143,4 +149,88 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
     // secret key, so it cannot sign on its behalf, and the tool says so rather
     // than returning a silent null.
   };
+}
+
+/**
+ * Stateless, issuer-authenticated challenge issuance. Persistence happens only
+ * after a valid agent signature, when the database records the challenge as
+ * consumed. Anonymous callers cannot allocate rows or lock agent records.
+ */
+export async function createMcpChallenge(agentPublicId: string, now = Date.now()) {
+  const issued = await issueMcpChallenge(agentPublicId, now);
+  return { nonce: issued.challenge, expiresAt: issued.expiresAt };
+}
+
+const PROTECTED_TOOLS = new Set([
+  "get_limits",
+  "record_spend",
+  "request_approval",
+  "check_approval",
+]);
+
+export function protectedMcpTool(message: {
+  method?: string;
+  params?: Record<string, unknown>;
+}): string | null {
+  if (message.method !== "tools/call") return null;
+  const name = typeof message.params?.["name"] === "string" ? message.params["name"] : "";
+  return PROTECTED_TOOLS.has(name) ? name : null;
+}
+
+export type McpAuthorizationOutcome =
+  | { ok: true }
+  | {
+      ok: false;
+      reason:
+        | "proof_required"
+        | "bad_signature"
+        | "challenge_invalid_or_replayed"
+        | "unknown_or_unusable_agent"
+        | "failed";
+    };
+
+type SignedActionFailure =
+  "unknown_or_unusable_agent" | "bad_signature" | "challenge_invalid_or_replayed" | "failed";
+
+type SignedActionRecorder = (
+  input: unknown,
+) => Promise<
+  { ok: true; eventId: number; hash: string } | { ok: false; reason: SignedActionFailure }
+>;
+
+/**
+ * Authorize one protected MCP call with a fresh proof over the exact HTTP body.
+ * The database consumes the nonce before dispatch, so retries must obtain a new
+ * challenge and a captured request cannot be replayed.
+ */
+export async function authorizeMcpToolCall(
+  input: {
+    publicId: string;
+    toolName: string;
+    nonce: string | null;
+    signature: string | null;
+    requestUrl: string;
+    requestBody: string;
+  },
+  injectedRecorder?: SignedActionRecorder,
+): Promise<McpAuthorizationOutcome> {
+  if (!input.nonce || !input.signature) return { ok: false, reason: "proof_required" };
+  if (!(await verifyMcpChallenge(input.nonce, input.publicId))) {
+    return { ok: false, reason: "challenge_invalid_or_replayed" };
+  }
+
+  const recorder =
+    injectedRecorder ?? (await import("./actions.functions")).recordAgentSignedAction;
+  const result = await recorder({
+    publicId: input.publicId,
+    nonce: input.nonce,
+    kind: "mcp_authorized",
+    detail: `Authorized MCP ${input.toolName}`,
+    signature: input.signature,
+    method: "POST",
+    url: input.requestUrl,
+    body: input.requestBody,
+  });
+
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }

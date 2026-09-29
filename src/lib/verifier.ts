@@ -36,6 +36,8 @@ export type VerifierOptions = {
    * is why it is a parameter rather than a default we chose for you.
    */
   statusTtlMs?: number;
+  /** How long an issued challenge may remain unused before it is rejected. */
+  challengeTtlMs?: number;
   fetchImpl?: typeof fetch;
 };
 
@@ -69,10 +71,22 @@ export function createVerifier(options: VerifierOptions = {}) {
   const issuer = (options.issuer ?? DEFAULT_ISSUER).replace(/\/$/, "");
   const jwksTtlMs = options.jwksTtlMs ?? 3_600_000;
   const statusTtlMs = options.statusTtlMs ?? 0;
+  const challengeTtlMs = options.challengeTtlMs ?? 120_000;
   const doFetch = options.fetchImpl ?? fetch;
 
   let jwksCache: { at: number; jwks: Jwks } | undefined;
   const statusCache = new Map<string, { at: number; usable: boolean; status: string }>();
+  const outstandingChallenges = new Map<string, number>();
+
+  function challenge(): string {
+    const now = Date.now();
+    for (const [nonce, issuedAt] of outstandingChallenges) {
+      if (now - issuedAt >= challengeTtlMs) outstandingChallenges.delete(nonce);
+    }
+    const nonce = createChallenge();
+    outstandingChallenges.set(nonce, now);
+    return nonce;
+  }
 
   async function getJwks(): Promise<Jwks> {
     if (jwksCache && Date.now() - jwksCache.at < jwksTtlMs) return jwksCache.jwks;
@@ -103,10 +117,22 @@ export function createVerifier(options: VerifierOptions = {}) {
   }
 
   return {
-    /** Issue a single-use nonce. Keep it for the duration of this exchange only. */
-    challenge: createChallenge,
+    /** Issue a nonce this verifier will accept exactly once, for two minutes by default. */
+    challenge,
 
     async verify(input: VerifyInput): Promise<VerifyResult> {
+      // Claim the nonce before any asynchronous work. Even a failed attempt
+      // consumes it, preventing concurrent or captured-proof replay.
+      const issuedAt = outstandingChallenges.get(input.nonce);
+      outstandingChallenges.delete(input.nonce);
+      if (issuedAt === undefined || Date.now() - issuedAt >= challengeTtlMs) {
+        return {
+          trusted: false,
+          reason: "proof_invalid",
+          detail: "challenge_not_issued_or_replayed",
+        };
+      }
+
       // 1 + 2. Did we issue it, and is it in date? Offline.
       let jwks: Jwks;
       try {

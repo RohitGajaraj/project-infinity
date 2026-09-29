@@ -1,18 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { handleRpc, rpcError, RPC, type JsonRpcRequest } from "@/lib/mcp";
-import { authenticateAgent, buildContext } from "@/lib/mcp.server";
+import {
+  authenticateAgent,
+  authorizeMcpToolCall,
+  buildContext,
+  protectedMcpTool,
+} from "@/lib/mcp.server";
 
 /**
  * Infinity's MCP endpoint — how an agent uses Infinity.
  *
- * Streamable HTTP transport: a single POST carrying one JSON-RPC message, which
- * is the subset every MCP client supports and the only one we need, since none of
- * our tools stream.
- *
- * GET returns a description rather than an SSE stream. We do not implement
- * server-initiated messages, and saying so plainly is better than opening a
- * stream that never sends anything.
+ * Streamable HTTP transport: a single POST carrying one JSON-RPC message. Public
+ * IDs select an agent but never authorize private or state-changing calls.
+ * Protected tools require a fresh Ed25519 proof over the exact HTTP request;
+ * obtain a nonce from /api/public/challenge/{agent_id} first.
  */
 export const Route = createFileRoute("/mcp")({
   server: {
@@ -23,10 +25,17 @@ export const Route = createFileRoute("/mcp")({
           {
             name: "infinity",
             description:
-              "Verified identity for AI agents. Add this server to give your agent a checkable ID.",
+              "A signed mandate and proof-of-possession layer for AI agents from any platform.",
             transport: "streamable-http",
             endpoint: `${origin}/mcp`,
-            authentication: "Authorization: Bearer <your Infinity Agent ID>",
+            identification: "Authorization: Bearer <your public Infinity Agent ID>",
+            protected_tools: ["get_limits", "record_spend", "request_approval", "check_approval"],
+            protected_tool_authorization: {
+              challenge: `POST ${origin}/api/public/challenge/{agent_id}`,
+              headers: ["Infinity-Nonce", "Infinity-Signature"],
+              signed_material:
+                "INFINITY-POP-v1\\n<nonce>\\nPOST\\n<absolute-mcp-url>\\n<sha256-hex-of-exact-json-body>",
+            },
             get_an_agent_id: `${origin}/agents/new`,
             docs: `${origin}/llms.txt`,
             note: "POST a single JSON-RPC 2.0 message. Server-initiated messages are not used, so there is no SSE stream.",
@@ -36,9 +45,10 @@ export const Route = createFileRoute("/mcp")({
       },
 
       POST: async ({ request }) => {
+        const requestBody = await request.text();
         let message: JsonRpcRequest;
         try {
-          message = (await request.json()) as JsonRpcRequest;
+          message = JSON.parse(requestBody) as JsonRpcRequest;
         } catch {
           return json(rpcError(null, RPC.parseError, "Request body is not valid JSON."), 400);
         }
@@ -60,11 +70,39 @@ export const Route = createFileRoute("/mcp")({
             }),
             auth.status,
             {
-              // Point an unauthenticated client at how to get a token, per OAuth
-              // resource-metadata convention.
               "www-authenticate": `Bearer realm="infinity", error="${auth.error}"`,
             },
           );
+        }
+
+        const protectedTool = protectedMcpTool(message);
+        if (protectedTool) {
+          const authorization = await authorizeMcpToolCall({
+            publicId: auth.agentPublicId,
+            toolName: protectedTool,
+            nonce: request.headers.get("infinity-nonce"),
+            signature: request.headers.get("infinity-signature"),
+            requestUrl: request.url,
+            requestBody,
+          });
+
+          if (!authorization.ok) {
+            const challengeUrl = `${new URL(request.url).origin}/api/public/challenge/${encodeURIComponent(auth.agentPublicId)}`;
+            const proofMissing = authorization.reason === "proof_required";
+            return json(
+              rpcError(message.id ?? null, RPC.unauthorized, authorization.reason, {
+                description: proofMissing
+                  ? "This tool is private or changes state. Prove possession of the agent key over this exact request before retrying."
+                  : "The signed authorization was invalid, expired, or already used. Obtain a fresh challenge and sign this exact request.",
+                challenge_url: challengeUrl,
+                required_headers: ["Infinity-Nonce", "Infinity-Signature"],
+              }),
+              401,
+              {
+                "www-authenticate": `Infinity-PoP realm="infinity", error="${authorization.reason}"`,
+              },
+            );
+          }
         }
 
         const response = await handleRpc(message, buildContext(auth.agentPublicId, request.url));
@@ -81,7 +119,8 @@ export const Route = createFileRoute("/mcp")({
           headers: {
             ...CORS,
             "access-control-allow-methods": "GET, POST, OPTIONS",
-            "access-control-allow-headers": "content-type, authorization, mcp-protocol-version",
+            "access-control-allow-headers":
+              "content-type, authorization, mcp-protocol-version, infinity-nonce, infinity-signature",
             "access-control-max-age": "86400",
           },
         }),

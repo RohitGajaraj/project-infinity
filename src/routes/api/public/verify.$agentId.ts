@@ -13,10 +13,13 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
             status: 404,
             headers,
           });
+        const expired = new Date(a.expires_at).getTime() <= Date.now();
+        const status = expired ? "expired" : a.status;
         return new Response(
           JSON.stringify({
             agent_id: a.public_id,
-            status: a.status,
+            status,
+            usable: status === "valid",
             name: a.name,
             source: a.source,
             owner: { name: a.owner_name, identity_verified: a.owner_verified },

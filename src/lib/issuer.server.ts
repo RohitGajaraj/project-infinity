@@ -25,6 +25,7 @@ import {
   deriveKeypairFromSeed,
   signCompactJws,
   toPublicJwk,
+  verifyCompactJws,
   type Ed25519PrivateJwk,
   type Jwks,
 } from "./jws";
@@ -144,6 +145,66 @@ export async function issuerMode(): Promise<IssuerMode> {
 export async function publicJwks(): Promise<Jwks> {
   const { jwk } = await resolveIssuer();
   return { keys: [toPublicJwk(jwk)] };
+}
+
+const MCP_CHALLENGE_TYP = "infinity-mcp-challenge+jwt";
+const MCP_CHALLENGE_TTL_SECONDS = 120;
+
+type McpChallengeClaims = {
+  sub: string;
+  iat: number;
+  exp: number;
+  jti: string;
+};
+
+/**
+ * Create an authenticated, agent-bound challenge without touching the database.
+ * The issuer signature proves provenance; the random jti makes parallel tokens
+ * distinct. Replay state is written only after the agent also signs the request.
+ */
+export async function issueMcpChallenge(agentId: string, now = Date.now()) {
+  const { jwk } = await resolveIssuer();
+  const issuedAt = Math.floor(now / 1000);
+  const random = crypto.getRandomValues(new Uint8Array(24));
+  const jti = Array.from(random, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const challenge = await signCompactJws(
+    {
+      sub: agentId,
+      iat: issuedAt,
+      exp: issuedAt + MCP_CHALLENGE_TTL_SECONDS,
+      jti,
+    },
+    jwk,
+    MCP_CHALLENGE_TYP,
+  );
+  return {
+    challenge,
+    expiresAt: new Date((issuedAt + MCP_CHALLENGE_TTL_SECONDS) * 1000).toISOString(),
+  };
+}
+
+/** Validate issuer provenance, subject binding, and the short freshness window. */
+export async function verifyMcpChallenge(
+  challenge: string,
+  expectedAgentId: string,
+  now = Date.now(),
+): Promise<boolean> {
+  if (challenge.length > 1024) return false;
+  const result = await verifyCompactJws<McpChallengeClaims>(challenge, await publicJwks());
+  if (!result.valid || result.header.typ !== MCP_CHALLENGE_TYP) return false;
+
+  const nowSeconds = Math.floor(now / 1000);
+  const { sub, iat, exp, jti } = result.payload;
+  return (
+    sub === expectedAgentId &&
+    typeof iat === "number" &&
+    typeof exp === "number" &&
+    typeof jti === "string" &&
+    jti.length === 48 &&
+    iat <= nowSeconds + 5 &&
+    exp > nowSeconds &&
+    exp - iat === MCP_CHALLENGE_TTL_SECONDS
+  );
 }
 
 /** Sign an Agent Identity Credential for the given agent state. */

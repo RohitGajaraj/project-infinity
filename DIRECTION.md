@@ -1267,3 +1267,97 @@ developers, and a conformance vector for verifiers.
 
 **The next milestone remains not-code:** getting one business to run it. Everything
 after that is a guess until a real verifier has completed the handshake.
+
+---
+
+## 17. Adversarial model audit and trust-activation pass, 2026-09-30
+
+The phase-1 completion claim in §15.5 and §16.3 was too broad. A higher-depth pass traced the actual
+MCP request boundary and the customer journey rather than accepting the presence of primitives as an
+end-to-end mechanism. It found one release-blocking security defect and two incomplete product claims.
+
+### 17.1 Release blocker found and closed: a public Agent ID authorized mutations
+
+`/mcp` correctly described the bearer Agent ID as public, but then wired that bare ID to
+`record_spend`, `request_approval`, and `check_approval`. Anyone who saw a public Verify URL could use
+its ID to consume recorded allowance, create owner prompts, or read an approval outcome. Keeping the
+underlying SQL functions service-role-only did not protect this path: the public server was the
+privileged caller and its application check established existence, not possession.
+
+Protected MCP calls now require a fresh Ed25519 proof over the **exact HTTP request body**:
+
+1. `POST /api/public/challenge/{agent_id}` returns an issuer-signed, agent-bound two-minute token
+   without querying or writing the database.
+2. The agent signs `INFINITY-POP-v1`, nonce, `POST`, the absolute MCP URL, and the SHA-256 body hash.
+3. The request carries `Infinity-Nonce` and `Infinity-Signature`.
+4. Infinity checks freshness and the stored public key, then atomically inserts the nonce as consumed
+   and bound to that agent before tool dispatch. Duplicate insertion is replay and fails closed.
+
+Read-only tools continue to use the public Agent ID because they expose no more than public
+verification surfaces. The live probe now contains the missing adversarial assertion: a copied valid
+Agent ID without the private key receives `proof_required` before it can mutate allowance.
+
+### 17.2 Verifier replay ownership is now explicit
+
+The drop-in verifier previously generated random challenges but did not remember which it issued or
+whether one had been used. The same valid nonce and signature could therefore be presented twice to
+the same verifier instance. `createVerifier` now keeps short-lived outstanding challenges, claims one
+before asynchronous verification begins, and rejects unknown, expired, concurrent, or replayed
+nonces. The default validity is two minutes and is configurable. An adversarial test repeats the exact
+same valid proof and confirms that the second attempt fails before another status call.
+
+### 17.3 The UI now reports evidence, not a blended “verified” state
+
+Issuance no longer says an agent “is now verified.” It says the credential was issued, requires the
+owner to confirm secure key storage, and shows three separate activation states: credential issued,
+private key handed off, and presenter possession proven. The mandate form now includes the missing
+expiry control, cross-field limit validation, accessible field structure, mobile layouts, and explicit
+public handoff links.
+
+The public Verify page no longer claims “this agent is who it says it is” from a database lookup. It
+separates live status, browser-verified issuer signature, presenter possession (not checked on a shared
+page), and operator-asserted owner attestation. Expired credentials have a real expired card state.
+Console language also distinguishes agent-signed events from hash-chained system/owner events and
+states that Infinity's spend ledger is not itself an external payment rail.
+
+The landing page now leads with the customer outcome—legitimate agents stop getting blocked—and the
+implemented mechanism: a signed mandate a business can check for free. Future email, phone, wallet,
+and insurance rails remain labelled as roadmap rather than appearing in current-product metadata.
+
+### 17.4 Validation evidence
+
+- `bunx tsc --noEmit`: pass
+- `bun run lint`: pass with 0 errors (7 pre-existing Fast Refresh warnings)
+- `bun test`: **190 pass, 0 fail**, including same-proof replay, MCP authorization
+  fail-closed behavior, challenge freshness, and parallel nonce uniqueness
+- `bun run build`: production client, SSR, and Cloudflare Nitro bundles pass
+- Browser smoke test: desktop and 390 px mobile landing layouts stay within the viewport; the public
+  sample is explicitly non-real; challenge issuance is stateless and reveals no agent-existence
+  signal.
+
+This pass introduces `20260930030000_bound_agent_challenges.sql`. **The migration must be applied
+before the dependent MCP application code is deployed**, because it changes nonce consumption from
+updating a pre-issued row to inserting into a replay ledger. We have no database credentials here, so
+Lovable must apply it. Immediately afterward, run the live probe and confirm: repeated/parallel
+challenges allocate no rows, valid signed calls consume distinct nonces, replay and wrong-agent proofs
+fail, failures leave allowance unchanged, and owner freeze is not blocked by challenge traffic.
+
+### 17.5 What remains, in order
+
+1. **Ship a local signer-aware MCP adapter.** Remote protected calls are secure now, but generic MCP
+   clients cannot dynamically sign each HTTP body from a static header configuration. A small local
+   adapter must own the `infsk_` key, acquire nonces, and forward signed requests. Until then, do not
+   restore the false “one static config enables spending” claim.
+2. **Complete owner attestation end to end.** The Didit adapter and database model exist, but there is
+   still no reachable start/callback/webhook flow and the provider verdict does not yet return a
+   securely bound owner ID. §15.3 closed the data model, not the customer journey.
+3. **Bind and sign approval receipts.** Approval rows are one-use and amount-bound, but there is no
+   independently verifiable owner receipt bound to the exact approved action. This remains part of the
+   differentiation from generic bot authentication.
+4. **Run the external verifier milestone.** Phase 1 is still not commercially validated until one
+   unrelated business completes credential, challenge, proof, and status in its own codebase in under
+   a second.
+
+The governing conclusion is therefore corrected: **the core credential and handshake primitives are
+implemented and the discovered MCP impersonation path is closed; phase 1 is not yet a complete
+customer loop or an externally validated product.**

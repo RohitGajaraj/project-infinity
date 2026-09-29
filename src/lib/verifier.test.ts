@@ -105,7 +105,7 @@ describe("proof of possession in isolation", () => {
     expect(await verifyProof(storedPub, sig, parts)).toEqual({ ok: true });
   });
 
-  test("a different nonce does not verify — this is what stops replay", async () => {
+  test("a signature cannot be moved to a different nonce", async () => {
     const { storedPub, agentKeys } = await scenario();
     const parts = {
       nonce: createChallenge(),
@@ -114,8 +114,8 @@ describe("proof of possession in isolation", () => {
       bodySha256: "",
     };
     const sig = await signProof(agentKeys.privateKey, parts);
-    const replayed = { ...parts, nonce: createChallenge() };
-    expect(await verifyProof(storedPub, sig, replayed)).toEqual({
+    const moved = { ...parts, nonce: createChallenge() };
+    expect(await verifyProof(storedPub, sig, moved)).toEqual({
       ok: false,
       reason: "bad_proof_signature",
     });
@@ -164,6 +164,29 @@ describe("proof of possession in isolation", () => {
 });
 
 describe("the full handshake a business runs", () => {
+  test("the same valid proof is rejected when replayed", async () => {
+    const s = await scenario();
+    const { impl, calls } = fakeFetch(s.jwks, { status: "valid", usable: true });
+    const verifier = createVerifier({ issuer: ISSUER, fetchImpl: impl });
+    const nonce = verifier.challenge();
+    const signature = await signProof(s.agentKeys.privateKey, {
+      nonce,
+      method: REQ.method,
+      url: REQ.url,
+      bodySha256: await import("./jws").then((m) => m.sha256Hex(REQ.body)),
+    });
+    const input = { credential: s.credential, signature, nonce, ...REQ };
+
+    expect((await verifier.verify(input)).trusted).toBe(true);
+    const replay = await verifier.verify(input);
+    expect(replay).toEqual({
+      trusted: false,
+      reason: "proof_invalid",
+      detail: "challenge_not_issued_or_replayed",
+    });
+    expect(calls.status).toBe(1);
+  });
+
   test("a genuine agent is trusted", async () => {
     const s = await scenario();
     const { impl } = fakeFetch(s.jwks, { status: "valid", usable: true });

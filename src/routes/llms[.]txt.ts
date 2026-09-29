@@ -36,7 +36,8 @@ identity issued by the agent's own maker, so the issuer has to be independent.
 
 ## If you are an agent
 
-Add the MCP server and you get five tools.
+Add the MCP server and you get seven tools. The Agent ID in the header is public:
+it selects your record but authorizes nothing by itself.
 
 \`\`\`json
 {
@@ -48,6 +49,18 @@ Add the MCP server and you get five tools.
   }
 }
 \`\`\`
+
+The bare Agent ID may call only public tools. Before \`get_limits\`, \`record_spend\`,
+\`request_approval\`, or \`check_approval\`:
+
+1. \`POST ${origin}/api/public/challenge/YOUR_AGENT_ID\` for a short-lived nonce.
+2. Hash the exact JSON-RPC body you will send; do not reformat it after signing.
+3. Sign \`INFINITY-POP-v1\\n<nonce>\\nPOST\\n${origin}/mcp\\n<sha256-hex-of-body>\`
+   with the agent's Ed25519 private key.
+4. Send the request with \`Infinity-Nonce\` and \`Infinity-Signature\` headers.
+
+Each nonce is accepted exactly once. A public Agent ID alone can never read live
+allowance, spend, raise an owner request, or read a private approval outcome.
 
 - \`whoami\` — your ID, who you act for, and a sentence you can say out loud.
   Call once at the start of a task.

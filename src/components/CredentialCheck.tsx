@@ -34,9 +34,10 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
 
     (async () => {
       try {
-        const [credRes, jwksRes] = await Promise.all([
+        const [credRes, jwksRes, metadataRes] = await Promise.all([
           fetch(`/api/public/credential/${encodeURIComponent(agentId)}`),
           fetch("/.well-known/jwks.json"),
+          fetch("/.well-known/infinity-issuer.json"),
         ]);
 
         if (!credRes.ok) {
@@ -44,9 +45,9 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
             setState({ kind: "error", message: "No credential is published for this ID." });
           return;
         }
-        if (!jwksRes.ok) {
+        if (!jwksRes.ok || !metadataRes.ok) {
           if (!cancelled)
-            setState({ kind: "error", message: "The issuer key set could not be fetched." });
+            setState({ kind: "error", message: "The issuer metadata could not be fetched." });
           return;
         }
 
@@ -60,13 +61,22 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
           warning?: string;
         };
         const jwks = (await jwksRes.json()) as Jwks;
+        const metadata = (await metadataRes.json()) as { issuer?: string };
 
         if (!jwks.keys?.length) {
           if (!cancelled) setState({ kind: "unsigned" });
           return;
         }
 
-        const result = await verifyAgentCredential(credential, jwks);
+        if (!metadata.issuer) {
+          if (!cancelled)
+            setState({ kind: "error", message: "The issuer identity was not published." });
+          return;
+        }
+
+        const result = await verifyAgentCredential(credential, jwks, {
+          expectedIssuer: metadata.issuer,
+        });
         if (cancelled) return;
 
         if (result.valid) {

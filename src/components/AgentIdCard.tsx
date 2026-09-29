@@ -3,7 +3,7 @@ export type AgentCard = {
   name: string;
   source: string;
   owner: string;
-  status: "valid" | "frozen";
+  status: "valid" | "frozen" | "expired";
   issued: string;
   expires: string;
   limits: string[];
@@ -13,7 +13,7 @@ export const SAMPLE_AGENT: AgentCard = {
   id: "inf_7Q2K-9XRM-4LTB",
   name: "Atlas",
   source: "Claude Code",
-  owner: "Rohit S. · verified",
+  owner: "Rohit S. · operator-attested sample",
   status: "valid",
   issued: "29 Sep 2026",
   expires: "29 Mar 2027",
@@ -22,6 +22,7 @@ export const SAMPLE_AGENT: AgentCard = {
 
 export function AgentIdCard({ agent }: { agent: AgentCard }) {
   const valid = agent.status === "valid";
+  const seal = valid ? "Valid" : agent.status === "expired" ? "Expired" : "Frozen";
   return (
     <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-border bg-card p-7 text-card-foreground">
       <div className="flex items-start justify-between">
@@ -37,7 +38,7 @@ export function AgentIdCard({ agent }: { agent: AgentCard }) {
             valid ? "border-verified text-verified" : "border-seal text-seal"
           }`}
         >
-          {valid ? "Valid" : "Frozen"}
+          {seal}
         </div>
       </div>
 

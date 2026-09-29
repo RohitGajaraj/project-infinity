@@ -23,6 +23,7 @@ import { Route as AuthenticatedAgentsIdRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAgentsNewRouteImport } from './routes/_authenticated/agents.new'
 import { Route as ApiPublicSandboxRouteImport } from './routes/api/public/sandbox'
 import { Route as ApiPublicAllowanceAgentIdRouteImport } from './routes/api/public/allowance.$agentId'
+import { Route as ApiPublicChallengeAgentIdRouteImport } from './routes/api/public/challenge.$agentId'
 import { Route as ApiPublicCredentialAgentIdRouteImport } from './routes/api/public/credential.$agentId'
 import { Route as ApiPublicStatusAgentIdRouteImport } from './routes/api/public/status.$agentId'
 import { Route as ApiPublicVerifyAgentIdRouteImport } from './routes/api/public/verify.$agentId'
@@ -99,6 +100,12 @@ const ApiPublicAllowanceAgentIdRoute =
     path: '/api/public/allowance/$agentId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicChallengeAgentIdRoute =
+  ApiPublicChallengeAgentIdRouteImport.update({
+    id: '/api/public/challenge/$agentId',
+    path: '/api/public/challenge/$agentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCredentialAgentIdRoute =
   ApiPublicCredentialAgentIdRouteImport.update({
     id: '/api/public/credential/$agentId',
@@ -130,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sandbox': typeof ApiPublicSandboxRoute
   '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
+  '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/api/public/sandbox': typeof ApiPublicSandboxRoute
   '/agents': typeof AuthenticatedAgentsIndexRoute
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
+  '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
@@ -168,6 +177,7 @@ export interface FileRoutesById {
   '/api/public/sandbox': typeof ApiPublicSandboxRoute
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
+  '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/public/sandbox'
     | '/agents/'
     | '/api/public/allowance/$agentId'
+    | '/api/public/challenge/$agentId'
     | '/api/public/credential/$agentId'
     | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/api/public/sandbox'
     | '/agents'
     | '/api/public/allowance/$agentId'
+    | '/api/public/challenge/$agentId'
     | '/api/public/credential/$agentId'
     | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
@@ -225,6 +237,7 @@ export interface FileRouteTypes {
     | '/api/public/sandbox'
     | '/_authenticated/agents/'
     | '/api/public/allowance/$agentId'
+    | '/api/public/challenge/$agentId'
     | '/api/public/credential/$agentId'
     | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
@@ -242,6 +255,7 @@ export interface RootRouteChildren {
   VerifyAgentIdRoute: typeof VerifyAgentIdRoute
   ApiPublicSandboxRoute: typeof ApiPublicSandboxRoute
   ApiPublicAllowanceAgentIdRoute: typeof ApiPublicAllowanceAgentIdRoute
+  ApiPublicChallengeAgentIdRoute: typeof ApiPublicChallengeAgentIdRoute
   ApiPublicCredentialAgentIdRoute: typeof ApiPublicCredentialAgentIdRoute
   ApiPublicStatusAgentIdRoute: typeof ApiPublicStatusAgentIdRoute
   ApiPublicVerifyAgentIdRoute: typeof ApiPublicVerifyAgentIdRoute
@@ -347,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAllowanceAgentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/challenge/$agentId': {
+      id: '/api/public/challenge/$agentId'
+      path: '/api/public/challenge/$agentId'
+      fullPath: '/api/public/challenge/$agentId'
+      preLoaderRoute: typeof ApiPublicChallengeAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/credential/$agentId': {
       id: '/api/public/credential/$agentId'
       path: '/api/public/credential/$agentId'
@@ -399,6 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyAgentIdRoute: VerifyAgentIdRoute,
   ApiPublicSandboxRoute: ApiPublicSandboxRoute,
   ApiPublicAllowanceAgentIdRoute: ApiPublicAllowanceAgentIdRoute,
+  ApiPublicChallengeAgentIdRoute: ApiPublicChallengeAgentIdRoute,
   ApiPublicCredentialAgentIdRoute: ApiPublicCredentialAgentIdRoute,
   ApiPublicStatusAgentIdRoute: ApiPublicStatusAgentIdRoute,
   ApiPublicVerifyAgentIdRoute: ApiPublicVerifyAgentIdRoute,

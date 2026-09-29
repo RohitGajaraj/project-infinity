@@ -163,7 +163,7 @@ function AgentDetail() {
               id: a.public_id,
               name: a.name,
               source: a.source,
-              owner: `${profile.data?.display_name ?? "You"}${profile.data?.identity_verified ? " · verified" : ""}`,
+              owner: profile.data?.display_name ?? "You",
               status: valid ? "valid" : "frozen",
               issued: fmtDate(a.created_at),
               expires: fmtDate(a.expires_at),
@@ -188,7 +188,7 @@ function AgentDetail() {
             <p className="text-sm font-medium">Off switch</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {valid
-                ? "Freezing instantly makes every business that checks this ID see it as frozen."
+                ? "Freezing makes the live status endpoint refuse this agent on the next uncached check."
                 : "This agent is frozen. Businesses checking its ID are told not to trust it."}
             </p>
             <button
@@ -218,8 +218,8 @@ function AgentDetail() {
                 />
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
-                ${allowance.data.remaining_usd} left. The cap is enforced when the agent records a
-                spend, not just displayed here.
+                ${allowance.data.remaining_usd} left. Infinity refuses ledger reservations above
+                this cap; an external payment rail must still require that authorization.
               </p>
             </div>
           )}
@@ -227,7 +227,7 @@ function AgentDetail() {
           <h2 className="mt-10 font-serif text-3xl">Approvals</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             Requests this agent raised because they exceeded the amount you pre-authorised. Until
-            you decide, it cannot proceed.
+            you decide, Infinity will not authorize the corresponding reservation.
           </p>
           {decideError && (
             <p className="mt-3 text-sm text-seal" role="alert">
@@ -281,15 +281,22 @@ function AgentDetail() {
             </p>
           )}
 
-          <h2 className="mt-10 font-serif text-3xl">Signed activity log</h2>
+          <h2 className="mt-10 font-serif text-3xl">Activity evidence</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Each entry is chained to the one before it — any tampering breaks the chain.
+            Entries are hash-chained to expose sequence edits. “Proof checked” means Infinity
+            verified agent key possession when ingesting the request; this row does not retain the
+            full canonical request needed for independent signature replay.
           </p>
           <ol className="mt-5 border-t border-border">
             {events.data?.map((e) => (
               <li key={e.id} className="border-b border-border py-3">
-                <div className="flex justify-between text-sm">
-                  <span className="capitalize">{e.kind}</span>
+                <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-start sm:justify-between">
+                  <span className="capitalize">
+                    {e.kind}
+                    <span className="ml-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                      {e.signer === "agent" ? "proof checked" : (e.signer ?? "system")}
+                    </span>
+                  </span>
                   <span className="text-muted-foreground">
                     {new Date(e.created_at).toLocaleString()}
                   </span>
