@@ -70,7 +70,7 @@ Add the MCP server and you get five tools.
 \`\`\`
 get_limits                     what is left this month
 record_spend                   allowed: true  -> pay
-                               allowed: false -> read `reason`, do not pay
+                               allowed: false -> read the reason, do not pay
 \`\`\`
 
 If \`record_spend\` says \`owner_approval_required\`:
