@@ -36,6 +36,13 @@
       "when": 1790708173044,
       "tag": "0004_fix_signed_action_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790709955545,
+      "tag": "0005_owner_attestations",
+      "breakpoints": true
     }
   ]
 }
