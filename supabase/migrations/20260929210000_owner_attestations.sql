@@ -157,6 +157,13 @@ grant execute on function public.record_owner_attestation(uuid, text, text, text
 -- ============================================ expose it to verification
 -- Extends verify_agent with the owner's attestation. Column order is preserved
 -- and new columns are appended, so existing callers keep working.
+--
+-- The DROP is required, not tidiness: Postgres refuses to change the return type
+-- of an existing function via CREATE OR REPLACE, so without this a fresh setup
+-- stops here. Found by Lovable when applying this migration — the repo file is the
+-- reproducible artefact, so it has to work from empty.
+drop function if exists public.verify_agent(text);
+
 create or replace function public.verify_agent(_public_id text)
   returns table(
     public_id text, name text, source text, status text,

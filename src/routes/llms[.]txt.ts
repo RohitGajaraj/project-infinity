@@ -88,6 +88,22 @@ GET ${origin}/api/public/verify/{agent_id}       # everything, as plain JSON
 
 A human-readable page for any agent: ${origin}/verify/{agent_id}
 
+### Test your integration before you meet a real agent
+
+You cannot produce a valid proof of possession yourself — it needs an agent's
+secret key. So we publish a complete worked example: a credential, the key set
+that signed it, a nonce, and a valid signature.
+
+\`\`\`
+GET ${origin}/api/public/sandbox
+\`\`\`
+
+Verify it, see it pass, change one character, see it fail. Then you are done.
+
+The sandbox issuer is \`${origin}/sandbox\`, deliberately **not** the production
+issuer, and its signing key is derived from a constant published in our source.
+Anyone can forge sandbox credentials. They prove your code works and nothing else.
+
 ## What the credential says, and what it does not
 
 Format is \`vc+jwt\`: a W3C-Verifiable-Credential payload in a compact JWS, EdDSA.

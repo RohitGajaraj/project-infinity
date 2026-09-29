@@ -1199,3 +1199,71 @@ separately.
 **So phase 1's mechanism is done.** What remains is not code: the §10.7 test of
 whether a business will complete the handshake. That is the next real milestone, and
 no further feature work should precede it.
+
+---
+
+## 16. The conformance vector, and two more fixes, 2026-09-29
+
+### 16.1 Two defects Lovable found, both fixed
+
+**The attestation migration would fail on a fresh setup.** Postgres refuses to
+change a function's return type through `CREATE OR REPLACE`, so extending
+`verify_agent` with four columns needed an explicit `DROP FUNCTION` first. Lovable
+worked around it by hand when applying, which means the *live database was fine and
+the repo file was broken* — the worse of the two failure modes, because the repo file
+is the reproducible artefact and the thing an export-to-self-owned-Postgres depends
+on. Fixed in place.
+
+**`current_owner_attestation` was callable by anon.** Holding an owner's internal
+UUID would have revealed their assurance level and verification date. No personal
+data and those UUIDs are not published, so low severity — but it bought nothing.
+Revoked to `service_role`; nothing breaks because its only caller is `verify_agent`,
+which is `SECURITY DEFINER` and so executes it with the definer's privileges rather
+than the caller's.
+
+**That is the same lesson twice in one day**, after `record_signed_action`: grant
+execute to `anon` only where an anonymous caller genuinely needs it. Now a standing
+rule in AGENTS.md.
+
+### 16.2 The conformance vector, and why it is the most important thing built today
+
+§10.7 says phase 1 is done when **one business completes the full handshake**, and
+that the adoption cost must be lower than the cost of thinking about it. There was a
+hard blocker in the way, and it is not obvious until you try to integrate:
+
+**a business cannot test the handshake alone.** Proof of possession requires an
+agent's *secret* key. So a developer following our guide could verify a credential
+and check status, but could not exercise step 3 — the step that turns the credential
+from a bearer token into a key — without first finding a cooperating agent. That is
+precisely the friction that kills adoption.
+
+So `/api/public/sandbox` publishes a complete worked example: a credential, the key
+set that signed it, a nonce, the exact canonical string, and a valid signature over
+it, plus the expected outcomes and five numbered steps. A developer verifies it, sees
+it pass, changes one character, sees it fail, and is finished. Deterministic, so they
+can commit it to their own test suite.
+
+**Why it cannot become a forgery kit**, which was the obvious objection:
+
+- The sandbox signs with a key derived from a **constant published in our source**,
+  so it is explicitly not secret.
+- Its issuer is `<origin>/sandbox`, **not** the production issuer, so a verifier
+  pinning the real issuer rejects it outright. There is a test asserting exactly
+  that, and it is the single most important property in the file.
+- The sandbox key never appears in the production key set.
+- Its owner reports `assurance: "none"` and its mandate is capped at $100.
+- The payload leads with a warning saying anyone can forge it and it proves nothing
+  beyond the correctness of your code.
+
+Twelve tests cover the vector, and they are deliberately written as *the integration
+guide's contract*: if they fail, every developer following our instructions gets a
+broken example, which is worse than shipping none.
+
+### 16.3 State of play
+
+Phase 1's mechanism is complete and now *integrable by a stranger without talking to
+us*: 134 unit tests, 40 live end-to-end checks, `llms.txt` for agents, OpenAPI for
+developers, and a conformance vector for verifiers.
+
+**The next milestone remains not-code:** getting one business to run it. Everything
+after that is a guess until a real verifier has completed the handshake.

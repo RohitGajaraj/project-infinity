@@ -115,6 +115,23 @@ function spec(origin: string) {
           },
         },
       },
+      "/api/public/sandbox": {
+        get: {
+          tags: ["verification"],
+          operationId: "getSandboxVector",
+          summary: "A conformance test vector for your integration",
+          description:
+            "You cannot produce a valid proof of possession on your own, because it requires an agent's secret key. This returns a complete worked example — credential, key set, nonce and a valid signature — so you can prove your verifier works before meeting a real agent. Deterministic, so it is safe to commit to your own test suite. The sandbox issuer is deliberately different from production and its signing key is derived from a published constant, so anyone can forge these: they prove your code works and nothing else.",
+          responses: {
+            "200": {
+              description: "The test vector, with expected outcomes and step-by-step instructions.",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/SandboxVector" } },
+              },
+            },
+          },
+        },
+      },
       "/.well-known/jwks.json": {
         get: {
           tags: ["discovery"],
@@ -272,6 +289,42 @@ function spec(origin: string) {
                 },
               },
             },
+          },
+        },
+        SandboxVector: {
+          type: "object",
+          properties: {
+            warning: {
+              type: "string",
+              description: "Read this. Sandbox credentials prove nothing.",
+            },
+            issuer: { type: "string", description: "Deliberately not the production issuer." },
+            credential: { type: "string" },
+            jwks: { $ref: "#/components/schemas/Jwks" },
+            proof: {
+              type: "object",
+              properties: {
+                nonce: { type: "string" },
+                method: { type: "string" },
+                url: { type: "string" },
+                bodySha256: { type: "string" },
+                signature: { type: "string" },
+                canonical_string: {
+                  type: "string",
+                  description:
+                    "The exact bytes that were signed. Rebuild this yourself and compare.",
+                },
+              },
+            },
+            expected: {
+              type: "object",
+              properties: {
+                credential_valid: { type: "boolean" },
+                proof_valid: { type: "boolean" },
+                status_usable: { type: "boolean" },
+              },
+            },
+            how_to_use: { type: "array", items: { type: "string" } },
           },
         },
         IssuerMetadata: {

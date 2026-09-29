@@ -21,6 +21,7 @@ import { Route as VerifyAgentIdRouteImport } from './routes/verify.$agentId'
 import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
 import { Route as AuthenticatedAgentsIdRouteImport } from './routes/_authenticated/agents.$id'
 import { Route as AuthenticatedAgentsNewRouteImport } from './routes/_authenticated/agents.new'
+import { Route as ApiPublicSandboxRouteImport } from './routes/api/public/sandbox'
 import { Route as ApiPublicCredentialAgentIdRouteImport } from './routes/api/public/credential.$agentId'
 import { Route as ApiPublicStatusAgentIdRouteImport } from './routes/api/public/status.$agentId'
 import { Route as ApiPublicVerifyAgentIdRouteImport } from './routes/api/public/verify.$agentId'
@@ -86,6 +87,11 @@ const AuthenticatedAgentsNewRoute = AuthenticatedAgentsNewRouteImport.update({
   path: '/agents/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicSandboxRoute = ApiPublicSandboxRouteImport.update({
+  id: '/api/public/sandbox',
+  path: '/api/public/sandbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCredentialAgentIdRoute =
   ApiPublicCredentialAgentIdRouteImport.update({
     id: '/api/public/credential/$agentId',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/verify/$agentId': typeof VerifyAgentIdRoute
   '/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/agents/new': typeof AuthenticatedAgentsNewRoute
+  '/api/public/sandbox': typeof ApiPublicSandboxRoute
   '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/verify/$agentId': typeof VerifyAgentIdRoute
   '/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/agents/new': typeof AuthenticatedAgentsNewRoute
+  '/api/public/sandbox': typeof ApiPublicSandboxRoute
   '/agents': typeof AuthenticatedAgentsIndexRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/verify/$agentId': typeof VerifyAgentIdRoute
   '/_authenticated/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/_authenticated/agents/new': typeof AuthenticatedAgentsNewRoute
+  '/api/public/sandbox': typeof ApiPublicSandboxRoute
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/verify/$agentId'
     | '/agents/$id'
     | '/agents/new'
+    | '/api/public/sandbox'
     | '/agents/'
     | '/api/public/credential/$agentId'
     | '/api/public/status/$agentId'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/verify/$agentId'
     | '/agents/$id'
     | '/agents/new'
+    | '/api/public/sandbox'
     | '/agents'
     | '/api/public/credential/$agentId'
     | '/api/public/status/$agentId'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/verify/$agentId'
     | '/_authenticated/agents/$id'
     | '/_authenticated/agents/new'
+    | '/api/public/sandbox'
     | '/_authenticated/agents/'
     | '/api/public/credential/$agentId'
     | '/api/public/status/$agentId'
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   DotwellKnownInfinityIssuerDotjsonRoute: typeof DotwellKnownInfinityIssuerDotjsonRoute
   DotwellKnownJwksDotjsonRoute: typeof DotwellKnownJwksDotjsonRoute
   VerifyAgentIdRoute: typeof VerifyAgentIdRoute
+  ApiPublicSandboxRoute: typeof ApiPublicSandboxRoute
   ApiPublicCredentialAgentIdRoute: typeof ApiPublicCredentialAgentIdRoute
   ApiPublicStatusAgentIdRoute: typeof ApiPublicStatusAgentIdRoute
   ApiPublicVerifyAgentIdRoute: typeof ApiPublicVerifyAgentIdRoute
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/sandbox': {
+      id: '/api/public/sandbox'
+      path: '/api/public/sandbox'
+      fullPath: '/api/public/sandbox'
+      preLoaderRoute: typeof ApiPublicSandboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/credential/$agentId': {
       id: '/api/public/credential/$agentId'
       path: '/api/public/credential/$agentId'
@@ -356,6 +376,7 @@ const rootRouteChildren: RootRouteChildren = {
     DotwellKnownInfinityIssuerDotjsonRoute,
   DotwellKnownJwksDotjsonRoute: DotwellKnownJwksDotjsonRoute,
   VerifyAgentIdRoute: VerifyAgentIdRoute,
+  ApiPublicSandboxRoute: ApiPublicSandboxRoute,
   ApiPublicCredentialAgentIdRoute: ApiPublicCredentialAgentIdRoute,
   ApiPublicStatusAgentIdRoute: ApiPublicStatusAgentIdRoute,
   ApiPublicVerifyAgentIdRoute: ApiPublicVerifyAgentIdRoute,
