@@ -8,7 +8,11 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
         const id = params.agentId.slice(0, 64);
         const a = await lookupAgent(id);
         const headers = { "content-type": "application/json", "access-control-allow-origin": "*" };
-        if (!a) return new Response(JSON.stringify({ agent_id: id, status: "unknown" }), { status: 404, headers });
+        if (!a)
+          return new Response(JSON.stringify({ agent_id: id, status: "unknown" }), {
+            status: 404,
+            headers,
+          });
         return new Response(
           JSON.stringify({
             agent_id: a.public_id,

@@ -12,10 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DotwellKnownInfinityIssuerDotjsonRouteImport } from './routes/[.]well-known.infinity-issuer[.]json'
+import { Route as DotwellKnownJwksDotjsonRouteImport } from './routes/[.]well-known.jwks[.]json'
 import { Route as VerifyAgentIdRouteImport } from './routes/verify.$agentId'
 import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
 import { Route as AuthenticatedAgentsIdRouteImport } from './routes/_authenticated/agents.$id'
 import { Route as AuthenticatedAgentsNewRouteImport } from './routes/_authenticated/agents.new'
+import { Route as ApiPublicCredentialAgentIdRouteImport } from './routes/api/public/credential.$agentId'
+import { Route as ApiPublicStatusAgentIdRouteImport } from './routes/api/public/status.$agentId'
 import { Route as ApiPublicVerifyAgentIdRouteImport } from './routes/api/public/verify.$agentId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -30,6 +34,17 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownInfinityIssuerDotjsonRoute =
+  DotwellKnownInfinityIssuerDotjsonRouteImport.update({
+    id: '/.well-known/infinity-issuer.json',
+    path: '/.well-known/infinity-issuer.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownJwksDotjsonRoute = DotwellKnownJwksDotjsonRouteImport.update({
+  id: '/.well-known/jwks.json',
+  path: '/.well-known/jwks.json',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyAgentIdRoute = VerifyAgentIdRouteImport.update({
@@ -53,6 +68,17 @@ const AuthenticatedAgentsNewRoute = AuthenticatedAgentsNewRouteImport.update({
   path: '/agents/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicCredentialAgentIdRoute =
+  ApiPublicCredentialAgentIdRouteImport.update({
+    id: '/api/public/credential/$agentId',
+    path: '/api/public/credential/$agentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicStatusAgentIdRoute = ApiPublicStatusAgentIdRouteImport.update({
+  id: '/api/public/status/$agentId',
+  path: '/api/public/status/$agentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVerifyAgentIdRoute = ApiPublicVerifyAgentIdRouteImport.update({
   id: '/api/public/verify/$agentId',
   path: '/api/public/verify/$agentId',
@@ -62,19 +88,27 @@ const ApiPublicVerifyAgentIdRoute = ApiPublicVerifyAgentIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/.well-known/infinity-issuer.json': typeof DotwellKnownInfinityIssuerDotjsonRoute
+  '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
   '/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/agents/new': typeof AuthenticatedAgentsNewRoute
   '/agents/': typeof AuthenticatedAgentsIndexRoute
+  '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
+  '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/.well-known/infinity-issuer.json': typeof DotwellKnownInfinityIssuerDotjsonRoute
+  '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
   '/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/agents/new': typeof AuthenticatedAgentsNewRoute
   '/agents': typeof AuthenticatedAgentsIndexRoute
+  '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
+  '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
 export interface FileRoutesById {
@@ -82,10 +116,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/.well-known/infinity-issuer.json': typeof DotwellKnownInfinityIssuerDotjsonRoute
+  '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
   '/verify/$agentId': typeof VerifyAgentIdRoute
   '/_authenticated/agents/$id': typeof AuthenticatedAgentsIdRoute
   '/_authenticated/agents/new': typeof AuthenticatedAgentsNewRoute
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
+  '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
+  '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
 export interface FileRouteTypes {
@@ -93,29 +131,41 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/.well-known/infinity-issuer.json'
+    | '/.well-known/jwks.json'
     | '/verify/$agentId'
     | '/agents/$id'
     | '/agents/new'
     | '/agents/'
+    | '/api/public/credential/$agentId'
+    | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/.well-known/infinity-issuer.json'
+    | '/.well-known/jwks.json'
     | '/verify/$agentId'
     | '/agents/$id'
     | '/agents/new'
     | '/agents'
+    | '/api/public/credential/$agentId'
+    | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/.well-known/infinity-issuer.json'
+    | '/.well-known/jwks.json'
     | '/verify/$agentId'
     | '/_authenticated/agents/$id'
     | '/_authenticated/agents/new'
     | '/_authenticated/agents/'
+    | '/api/public/credential/$agentId'
+    | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
   fileRoutesById: FileRoutesById
 }
@@ -123,7 +173,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DotwellKnownInfinityIssuerDotjsonRoute: typeof DotwellKnownInfinityIssuerDotjsonRoute
+  DotwellKnownJwksDotjsonRoute: typeof DotwellKnownJwksDotjsonRoute
   VerifyAgentIdRoute: typeof VerifyAgentIdRoute
+  ApiPublicCredentialAgentIdRoute: typeof ApiPublicCredentialAgentIdRoute
+  ApiPublicStatusAgentIdRoute: typeof ApiPublicStatusAgentIdRoute
   ApiPublicVerifyAgentIdRoute: typeof ApiPublicVerifyAgentIdRoute
 }
 
@@ -148,6 +202,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/infinity-issuer.json': {
+      id: '/.well-known/infinity-issuer.json'
+      path: '/.well-known/infinity-issuer.json'
+      fullPath: '/.well-known/infinity-issuer.json'
+      preLoaderRoute: typeof DotwellKnownInfinityIssuerDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/jwks.json': {
+      id: '/.well-known/jwks.json'
+      path: '/.well-known/jwks.json'
+      fullPath: '/.well-known/jwks.json'
+      preLoaderRoute: typeof DotwellKnownJwksDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify/$agentId': {
@@ -178,6 +246,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/credential/$agentId': {
+      id: '/api/public/credential/$agentId'
+      path: '/api/public/credential/$agentId'
+      fullPath: '/api/public/credential/$agentId'
+      preLoaderRoute: typeof ApiPublicCredentialAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/status/$agentId': {
+      id: '/api/public/status/$agentId'
+      path: '/api/public/status/$agentId'
+      fullPath: '/api/public/status/$agentId'
+      preLoaderRoute: typeof ApiPublicStatusAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/verify/$agentId': {
       id: '/api/public/verify/$agentId'
       path: '/api/public/verify/$agentId'
@@ -207,7 +289,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DotwellKnownInfinityIssuerDotjsonRoute:
+    DotwellKnownInfinityIssuerDotjsonRoute,
+  DotwellKnownJwksDotjsonRoute: DotwellKnownJwksDotjsonRoute,
   VerifyAgentIdRoute: VerifyAgentIdRoute,
+  ApiPublicCredentialAgentIdRoute: ApiPublicCredentialAgentIdRoute,
+  ApiPublicStatusAgentIdRoute: ApiPublicStatusAgentIdRoute,
   ApiPublicVerifyAgentIdRoute: ApiPublicVerifyAgentIdRoute,
 }
 export const routeTree = rootRouteImport

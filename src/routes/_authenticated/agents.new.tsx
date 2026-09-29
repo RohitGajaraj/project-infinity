@@ -9,9 +9,15 @@ export const Route = createFileRoute("/_authenticated/agents/new")({
   head: () => ({
     meta: [
       { title: "Add an agent — Infinity" },
-      { name: "description", content: "Issue a verified Agent ID to an AI agent from any platform." },
+      {
+        name: "description",
+        content: "Issue a verified Agent ID to an AI agent from any platform.",
+      },
       { property: "og:title", content: "Add an agent — Infinity" },
-      { property: "og:description", content: "Issue a verified Agent ID to an AI agent from any platform." },
+      {
+        property: "og:description",
+        content: "Issue a verified Agent ID to an AI agent from any platform.",
+      },
     ],
   }),
   component: NewAgent,
@@ -26,7 +32,9 @@ function NewAgent() {
   const [approve, setApprove] = useState(50);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [issued, setIssued] = useState<{ id: string; publicId: string; secret: string } | null>(null);
+  const [issued, setIssued] = useState<{ id: string; publicId: string; secret: string } | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -58,12 +66,15 @@ function NewAgent() {
     setBusy(false);
   }
 
-  const field = "w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground";
+  const field =
+    "w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground";
 
   if (issued) {
     return (
       <ConsoleShell>
-        <p className="font-mono text-xs uppercase tracking-[0.25em] text-verified">Agent ID issued</p>
+        <p className="font-mono text-xs uppercase tracking-[0.25em] text-verified">
+          Agent ID issued
+        </p>
         <h1 className="mt-3 font-serif text-5xl">{name} is now verified.</h1>
         <div className="mt-10 max-w-2xl space-y-6">
           <div>
@@ -73,9 +84,12 @@ function NewAgent() {
           <div className="rounded-lg border border-seal/40 p-5">
             <p className="text-sm font-medium">Secret key — shown once</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Give this to your agent. We only keep the matching public key, so we can't show it again.
+              Give this to your agent. We only keep the matching public key, so we can't show it
+              again.
             </p>
-            <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-3 font-mono text-xs">{issued.secret}</pre>
+            <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-3 font-mono text-xs">
+              {issued.secret}
+            </pre>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(issued.secret);
@@ -86,7 +100,11 @@ function NewAgent() {
               {copied ? "Copied" : "Copy secret key"}
             </button>
           </div>
-          <Link to="/agents/$id" params={{ id: issued.id }} className="inline-block rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
+          <Link
+            to="/agents/$id"
+            params={{ id: issued.id }}
+            className="inline-block rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
+          >
             I've saved it — open agent
           </Link>
         </div>
@@ -96,19 +114,32 @@ function NewAgent() {
 
   return (
     <ConsoleShell>
-      <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground">New Agent ID</p>
+      <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted-foreground">
+        New Agent ID
+      </p>
       <h1 className="mt-3 font-serif text-5xl">Add an agent</h1>
       <form onSubmit={submit} className="mt-10 max-w-xl space-y-8">
         <div className="space-y-2">
           <label className="text-sm">Name</label>
-          <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Atlas" required maxLength={60} />
+          <input
+            className={field}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Atlas"
+            required
+            maxLength={60}
+          />
         </div>
         <div className="space-y-2">
           <label className="text-sm">Where does it run?</label>
           <div className="flex flex-wrap gap-2">
             {SOURCES.map((s) => (
-              <button type="button" key={s} onClick={() => setSource(s)}
-                className={`rounded-full border px-3 py-1 text-sm ${source === s ? "border-foreground bg-foreground text-background" : "border-border hover:bg-accent"}`}>
+              <button
+                type="button"
+                key={s}
+                onClick={() => setSource(s)}
+                className={`rounded-full border px-3 py-1 text-sm ${source === s ? "border-foreground bg-foreground text-background" : "border-border hover:bg-accent"}`}
+              >
                 {s}
               </button>
             ))}
@@ -119,7 +150,13 @@ function NewAgent() {
           <div className="grid grid-cols-2 gap-2">
             {PERMISSIONS.map((p) => (
               <label key={p} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={perms.includes(p)} onChange={(e) => setPerms(e.target.checked ? [...perms, p] : perms.filter((x) => x !== p))} />
+                <input
+                  type="checkbox"
+                  checked={perms.includes(p)}
+                  onChange={(e) =>
+                    setPerms(e.target.checked ? [...perms, p] : perms.filter((x) => x !== p))
+                  }
+                />
                 {p}
               </label>
             ))}
@@ -128,15 +165,30 @@ function NewAgent() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm">Monthly spend limit ($)</label>
-            <input type="number" min={0} className={field} value={spend} onChange={(e) => setSpend(+e.target.value)} />
+            <input
+              type="number"
+              min={0}
+              className={field}
+              value={spend}
+              onChange={(e) => setSpend(+e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <label className="text-sm">Ask me above ($)</label>
-            <input type="number" min={0} className={field} value={approve} onChange={(e) => setApprove(+e.target.value)} />
+            <input
+              type="number"
+              min={0}
+              className={field}
+              value={approve}
+              onChange={(e) => setApprove(+e.target.value)}
+            />
           </div>
         </div>
         {err && <p className="text-sm text-seal">{err}</p>}
-        <button disabled={busy} className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+        <button
+          disabled={busy}
+          className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60"
+        >
           {busy ? "Issuing…" : "Issue Agent ID"}
         </button>
       </form>

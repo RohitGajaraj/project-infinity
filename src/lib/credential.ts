@@ -1,0 +1,205 @@
+/**
+ * The Agent Identity Credential.
+ *
+ * A W3C-VC-shaped payload secured as a compact JWS (the VC-JWT pattern), so an
+ * agent's identity can be checked with a signature check and no call to us.
+ * Only *current status* needs a live call, which is what `credentialStatus`
+ * points at.
+ *
+ * Pure module: no secrets, no server imports. A verifier can vendor this file.
+ */
+
+import { decodeCompactJws, verifyCompactJws, type Jwks, type JwsHeader } from "./jws";
+
+export const CREDENTIAL_TYP = "vc+jwt";
+export const CREDENTIAL_TYPE = "AgentIdentityCredential";
+export const VC_CONTEXT = [
+  "https://www.w3.org/ns/credentials/v2",
+  "https://infinity.id/contexts/agent/v1",
+] as const;
+
+export type AgentCredentialSubject = {
+  /** Stable public Agent ID, e.g. `inf_7Q2K-9XRM-4LTB`. */
+  id: string;
+  name: string;
+  /** Platform the agent runs on, self-declared by the owner. */
+  source: string;
+  /** The agent's own Ed25519 signing key, `ed25519:<base64>`. */
+  publicKey: string;
+  owner: {
+    name: string;
+    /** Whether the accountable human or company passed an identity check. */
+    identityVerified: boolean;
+  };
+  mandate: {
+    permissions: string[];
+    monthlySpendLimitUsd: number;
+    approvalAboveUsd: number;
+  };
+};
+
+export type AgentCredentialPayload = {
+  iss: string;
+  sub: string;
+  jti: string;
+  iat: number;
+  nbf: number;
+  exp: number;
+  vc: {
+    "@context": readonly string[];
+    type: readonly string[];
+    issuer: string;
+    validFrom: string;
+    validUntil: string;
+    credentialSubject: AgentCredentialSubject;
+    credentialStatus: {
+      id: string;
+      type: "InfinityStatusEndpoint";
+    };
+  };
+};
+
+/** Inputs needed to mint a credential. Mirrors the `verify_agent` row. */
+export type CredentialSource = {
+  public_id: string;
+  name: string;
+  source: string;
+  public_key: string;
+  owner_name: string | null;
+  owner_verified: boolean;
+  permissions: string[];
+  monthly_spend_limit: number;
+  approval_above: number;
+  created_at: string;
+  expires_at: string;
+};
+
+function toSeconds(iso: string): number {
+  return Math.floor(new Date(iso).getTime() / 1000);
+}
+
+/**
+ * Build the credential payload. Deterministic for a given agent row, so the
+ * same agent state always yields byte-identical claims.
+ */
+export function buildCredentialPayload(
+  agent: CredentialSource,
+  origin: string,
+): AgentCredentialPayload {
+  const issuer = origin;
+  const iat = toSeconds(agent.created_at);
+  const exp = toSeconds(agent.expires_at);
+  const subject: AgentCredentialSubject = {
+    id: agent.public_id,
+    name: agent.name,
+    source: agent.source,
+    publicKey: agent.public_key,
+    owner: {
+      name: agent.owner_name ?? "Unnamed owner",
+      identityVerified: agent.owner_verified,
+    },
+    mandate: {
+      permissions: agent.permissions ?? [],
+      monthlySpendLimitUsd: agent.monthly_spend_limit,
+      approvalAboveUsd: agent.approval_above,
+    },
+  };
+  return {
+    iss: issuer,
+    sub: agent.public_id,
+    jti: `${issuer}/credentials/${agent.public_id}`,
+    iat,
+    nbf: iat,
+    exp,
+    vc: {
+      "@context": VC_CONTEXT,
+      type: ["VerifiableCredential", CREDENTIAL_TYPE],
+      issuer,
+      validFrom: new Date(iat * 1000).toISOString(),
+      validUntil: new Date(exp * 1000).toISOString(),
+      credentialSubject: subject,
+      credentialStatus: {
+        id: `${issuer}/api/public/status/${agent.public_id}`,
+        type: "InfinityStatusEndpoint",
+      },
+    },
+  };
+}
+
+export type CredentialCheck =
+  | {
+      valid: true;
+      /** Signature verified and time claims are in range. */
+      payload: AgentCredentialPayload;
+      subject: AgentCredentialSubject;
+      header: JwsHeader;
+      /** Where to ask whether it has since been frozen or revoked. */
+      statusUrl: string;
+    }
+  | { valid: false; reason: CredentialFailure; payload?: AgentCredentialPayload };
+
+export type CredentialFailure =
+  | "malformed_jws"
+  | "unsupported_alg"
+  | "unknown_kid"
+  | "malformed_signature"
+  | "bad_signature"
+  | "wrong_type"
+  | "not_yet_valid"
+  | "expired"
+  | "issuer_mismatch";
+
+export const FAILURE_TEXT: Record<CredentialFailure, string> = {
+  malformed_jws: "The credential is not a well-formed JWS.",
+  unsupported_alg: "The credential is not signed with EdDSA.",
+  unknown_kid: "The credential names a signing key that is not in the published key set.",
+  malformed_signature: "The credential's signature could not be decoded.",
+  bad_signature: "The signature does not match the credential's contents.",
+  wrong_type: "This is not an Agent Identity Credential.",
+  not_yet_valid: "The credential is not valid yet.",
+  expired: "The credential has expired.",
+  issuer_mismatch: "The credential was issued by a different issuer than expected.",
+};
+
+/**
+ * Offline check. Verifies the signature against a JWKS and validates the time
+ * window and type. Does **not** tell you whether the agent was frozen after
+ * issuance — call `statusUrl` for that.
+ */
+export async function verifyAgentCredential(
+  jws: string,
+  jwks: Jwks,
+  opts: { expectedIssuer?: string; now?: Date } = {},
+): Promise<CredentialCheck> {
+  const result = await verifyCompactJws<AgentCredentialPayload>(jws, jwks);
+  if (!result.valid) {
+    const reason = result.reason as CredentialFailure;
+    return result.payload
+      ? { valid: false, reason, payload: result.payload }
+      : { valid: false, reason };
+  }
+
+  const { payload, header } = result;
+  if (!payload?.vc?.type?.includes(CREDENTIAL_TYPE))
+    return { valid: false, reason: "wrong_type", payload };
+  if (opts.expectedIssuer && payload.iss !== opts.expectedIssuer) {
+    return { valid: false, reason: "issuer_mismatch", payload };
+  }
+
+  const now = Math.floor((opts.now ?? new Date()).getTime() / 1000);
+  if (payload.nbf && now < payload.nbf) return { valid: false, reason: "not_yet_valid", payload };
+  if (payload.exp && now >= payload.exp) return { valid: false, reason: "expired", payload };
+
+  return {
+    valid: true,
+    payload,
+    subject: payload.vc.credentialSubject,
+    header,
+    statusUrl: payload.vc.credentialStatus.id,
+  };
+}
+
+/** Read the claims without verifying. For display of an invalid credential only. */
+export function peekCredential(jws: string): AgentCredentialPayload | null {
+  return decodeCompactJws<AgentCredentialPayload>(jws)?.payload ?? null;
+}

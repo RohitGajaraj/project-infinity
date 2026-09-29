@@ -1,5 +1,9 @@
 {
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
+  // Test files are checked and run by `bun test`. They are excluded here because
+  // pulling Bun's global types into the app program conflicts with the generated
+  // Supabase clients (Bun's `fetch` is not structurally identical to the DOM's).
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",

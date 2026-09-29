@@ -19,6 +19,13 @@ dist-ssr
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+# Secrets. NOTE: .env is currently already TRACKED in this repo, so this entry
+# does not untrack it — run `git rm --cached .env` to make it effective. Until
+# then, never write a real secret into .env; use Lovable's secret store.
+# See AGENTS.md § Secrets.
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*

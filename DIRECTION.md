@@ -303,3 +303,67 @@ A premium, calm feel like what Anthropic, OpenAI or Google ship: a warm near-whi
 - Routes: `/`, `/auth`, `/_authenticated/agents`, `/_authenticated/agents/new`, `/_authenticated/agents/$id`, public `/verify/$agentId`, `/api/public/verify/$agentId` (JSON), and the MCP add-on at `/mcp` with the tools `whoami`, `get_limits` and `sign_action`.
 - Ed25519 keys are generated in the browser. The private key is shown once, and only the public key is stored.
 - I'll update DIRECTION.md and README.md to record this change of direction (no new docs).
+
+---
+
+## 9. Phase 1 gap analysis, 2026-09-29 (after commit `7884d1b` "Completed phase 1 build")
+
+> Written after reading every source file, running typecheck and build, and **probing the live
+> database** rather than reading code for it. Supaprod's finding of 2026-08-02 is the reason for that
+> order: nine shipped features were found doing nothing in production, none by reading code.
+
+### What is genuinely solid
+
+- `bunx tsc --noEmit` clean; `bun run build` succeeds to a Cloudflare Worker.
+- **RLS verified live, not assumed.** Anon `INSERT` into `agents` is rejected (`42501`), anon `SELECT`
+  on `agents` / `profiles` / `agent_events` returns no rows, and `verify_agent` is callable by anon.
+- Ed25519 keypair is generated with WebCrypto in the browser; only the public key is persisted
+  (`src/lib/keys.ts`). This matches the claim in AGENTS.md.
+- `agent_events` carries `prev_hash` / `hash`. The public JSON endpoint works and sets CORS.
+- The design is premium and close to the brief's intent. This part is not the problem.
+
+### The critical gaps, all of one kind: claims the code cannot back
+
+| # | Gap | Why it matters |
+| --- | --- | --- |
+| **G1** | **The "signed activity log" is not signed.** It is hash-chained. Chaining proves the sequence was not edited *if you trust the database*; it does not establish who wrote an entry. And because the chain is computed by a DB trigger, the operator can recompute the whole chain and it still validates | Tamper-evident against a careless editor, not against us. For a neutrality product that distinction **is** the product. The UI asserts "Signed activity log" |
+| **G2** | **The Ed25519 keypair is decorative.** Nothing verifies a signature anywhere. No `sign_action`. The secret is generated, shown once, never used by any code path | "Every action carries a signature anyone can check" is currently false |
+| **G3** | **No Infinity credential, no Infinity signing key, no published JWKS, no offline verification.** A business "verifies" by querying our database and trusting the reply | This is the posture we say makes a maker-issued ID untrustworthy. **The neutrality claim has no cryptographic backing.** §7.6 of the brief promises exactly this and it is absent. Highest-priority item |
+| **G4** | **`profiles.identity_verified` is a boolean with no flow to set it**, not even a placeholder interface | Every agent reads "identity check pending"; "tied to a real, accountable human" is unbacked |
+| **G5** | **No machine surface at all:** no `/mcp`, no OpenAPI, no `llms.txt`, no SDK, no typed error codes | §4 says agents are the *main* users. An agent cannot currently interact with Infinity in any way. Phase 1 today serves humans only |
+| **G6** | **`supabase/migrations/` does not exist.** Zero SQL in the repo; RLS policies, the `chain_event` trigger and the `verify_agent` body are unreadable to us and to any auditor | Contradicts the product's own auditability claim and blocks the stated export-to-self-owned-Supabase goal |
+| **G7** | **No `user_roles` table**, though AGENTS.md and the brief §9 mandate it | Either implement it or delete the rule. An unmet stated rule is worse than no rule |
+| **G8** | **`owner_id` is passed explicitly by the client** on insert (`agents.new.tsx`). Unverified whether RLS forces `owner_id = auth.uid()` | If not forced, a signed-in user can issue an agent owned by someone else. Must be confirmed against the live policy |
+| **G9** | **`/verify/inf_7Q2K-9XRM-4LTB` returns a hardcoded "valid" verdict from the real verification route** | A verification service that answers "verified" for a fabricated ID inverts its own trust claim |
+| **G10** | Waitlist form discards the email (`setJoined(true)`, no persistence) | The one element on the site that would produce market contact is a no-op |
+| **G11** | 346 lint errors (345 prettier, 1 `prefer-const`); **zero tests**, including on key generation, chain integrity and verification | The repo cannot pass its own gate, and the crypto is untested |
+| **G12** | README had already rotted: header said phase 1 in progress, body said "nothing is built" and described the superseded direction | Doc rot inside six days. Fixed in this pass |
+
+### Two corrections to the plan itself
+
+**C1. The phase-1 success metric measures the wrong side.** The approved test is "10 outside agents
+onboarded; businesses check IDs." [`MARKETPLACE-REVIEW.md`](./MARKETPLACE-REVIEW.md) §6 already
+established that in this market supply is oversupplied and near-worthless while demand is scarce, and
+there is currently no reason for a business to check an ID. Ten onboarded agents therefore produce ten
+IDs nobody queries. **Proposed: phase 1 is done when one business performs a real verification check in
+a real flow.** Harder, and the only version that is falsifiable.
+
+**C2. Signed credentials are phase 1, not step 3 of it.** Agent identity is a consolidating category
+(Okta/Auth0 for agents, Cloudflare Web Bot Auth, Visa and Mastercard agent protocols, the 11-company
+ARD coalition of 2026-06-17). Neutrality is the correct answer to all of it, and it is the same
+independence thread that survived every prior analysis in this file. But neutrality is only defensible
+if verification works **without trusting us**. So the offline-verifiable signed credential is the core
+of phase 1. **The credential is the product; the console is packaging.**
+
+### Build order to make Agent ID actually solid, before any other vertical
+
+1. **Infinity signing key + signed credential + published JWKS + offline verification.** Closes G3, and
+   makes the neutrality claim true rather than asserted.
+2. **Real agent-side signing:** `sign_action` verifying the agent's Ed25519 signature server-side, and
+   co-signing entries into the log. Closes G2, and downgrades G1 from false claim to honest guarantee.
+3. **MCP server at `/mcp`** (`whoami`, `get_limits`, `sign_action`, `request_approval`, `verify_agent`)
+   plus OpenAPI, `llms.txt` and an SDK snippet. Closes G5.
+4. **Owner identity behind a clean interface**, provider-swappable, placeholder implementation. Closes G4.
+5. **Schema into `supabase/migrations/`**, confirm the `owner_id` policy, settle `user_roles`. Closes G6–G8.
+6. **Honesty and hygiene:** mark or remove the fake sample, persist the waitlist, fix lint, test the
+   crypto paths. Closes G9–G11.
