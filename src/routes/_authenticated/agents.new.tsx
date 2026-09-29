@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/agents/new")({
 function NewAgent() {
   const qc = useQueryClient();
   const [name, setName] = useState("");
-  const [source, setSource] = useState(SOURCES[0]);
+  const [source, setSource] = useState<string>(SOURCES[0]!);
   const [perms, setPerms] = useState<string[]>(["Send email"]);
   const [spend, setSpend] = useState(200);
   const [approve, setApprove] = useState(50);
