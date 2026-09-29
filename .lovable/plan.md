@@ -47,14 +47,24 @@ Owner signs up and proves who they are (ID check, like opening a bank account)
 ## 4. How we make money
 Monthly fee per agent, plus per-use charges (numbers, messages, ID checks), a small cut of wallet transactions, insurance commissions, and a paid plan for businesses that check agent IDs.
 
-## 5. First build (to prove the idea)
-1. Home page and waitlist.
+## 5. Two products, one foundation
+```text
+  Our own errand assistant (Wajo-style)  |  Other companies' agents (Claude Code, Muse, Wajo...)
+                    \                        /
+          Agent ID + permission slip + email/phone + wallet + receipts + off switch
+```
+- **Infinity Assistant** (the Wajo-style product): you type "book a dentist Thursday" or "cancel my gym" and it emails, calls and pays on your behalf, using its own email address, single-use cards, and a human helper when it gets stuck. What makes it different from Wajo: every action carries a checkable Agent ID and a signed receipt, and you can export the assistant's number, history and limits to any other agent.
+- **Why build both:** the assistant is our first and most demanding customer. It proves the foundation works, earns money directly from users, and gives us real track-record data from day one. Other agents then plug into the same foundation.
+
+## 6. First build (to prove the idea)
+1. Home page and waitlist, presenting both products.
 2. Owner sign-up with an identity check step (a placeholder at first).
-3. "Add agent" screen: source, name, and the permission slip.
-4. Agent ID, secret key and our add-on (MCP) with tools: send email, get my limits, prove who I am.
-5. Public check page for each agent, and an API anyone can use to confirm a signature.
-6. Activity log and off switch.
-Next steps: phone numbers, wallet, disputes, then insurance.
+3. **Assistant:** a chat where you type a task. The assistant plans it, shows each step, asks for approval before it sends or pays anything, and can send real emails from its own inbox. Calling and paying come later.
+4. **Agents dashboard:** add an outside agent (pick its source and name it), set its permission slip, and get its Agent ID and secret key.
+5. Our add-on (MCP) with tools any agent can use: send email, get my limits, prove who I am.
+6. Public check page for each agent, and an API anyone can use to confirm a signature.
+7. Activity log with signed receipts, plus an off switch.
+Next steps: phone calls, single-use cards, human backup, disputes, then insurance.
 
 ## 6. Technical details
 - Your own Supabase project (connected in Project Settings → Connectors) for sign-in and data. Tables: `owners`, `agents`, `agent_keys`, `mandates`, `events`, `channels`, plus `user_roles` in its own table. Row-level security on every table.
