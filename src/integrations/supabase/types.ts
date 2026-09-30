@@ -96,6 +96,110 @@ export type Database = {
           },
         ]
       }
+      agent_mandate_requests: {
+        Row: {
+          agent_id: string
+          approval_above: number | null
+          change_reason: string
+          created_at: string
+          expected_version: number
+          expires_at: string
+          monthly_spend_limit: number
+          permissions: string[]
+          request_id: string
+          result: string
+          result_version: number
+        }
+        Insert: {
+          agent_id: string
+          approval_above?: number | null
+          change_reason: string
+          created_at?: string
+          expected_version: number
+          expires_at: string
+          monthly_spend_limit: number
+          permissions: string[]
+          request_id: string
+          result: string
+          result_version: number
+        }
+        Update: {
+          agent_id?: string
+          approval_above?: number | null
+          change_reason?: string
+          created_at?: string
+          expected_version?: number
+          expires_at?: string
+          monthly_spend_limit?: number
+          permissions?: string[]
+          request_id?: string
+          result?: string
+          result_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_mandate_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_mandate_requests_result_fk"
+            columns: ["agent_id", "result_version"]
+            isOneToOne: false
+            referencedRelation: "agent_mandate_versions"
+            referencedColumns: ["agent_id", "version"]
+          },
+        ]
+      }
+      agent_mandate_versions: {
+        Row: {
+          agent_id: string
+          approval_above: number | null
+          change_reason: string
+          expires_at: string
+          issued_at: string
+          issued_by: string
+          monthly_spend_limit: number
+          permissions: string[]
+          request_id: string
+          version: number
+        }
+        Insert: {
+          agent_id: string
+          approval_above?: number | null
+          change_reason: string
+          expires_at: string
+          issued_at?: string
+          issued_by: string
+          monthly_spend_limit: number
+          permissions: string[]
+          request_id: string
+          version: number
+        }
+        Update: {
+          agent_id?: string
+          approval_above?: number | null
+          change_reason?: string
+          expires_at?: string
+          issued_at?: string
+          issued_by?: string
+          monthly_spend_limit?: number
+          permissions?: string[]
+          request_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_mandate_versions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_usage: {
         Row: {
           agent_id: string
@@ -105,6 +209,7 @@ export type Database = {
           detail: string
           id: number
           kind: string
+          mandate_version: number | null
           reference: string
           reverses_usage_id: number | null
         }
@@ -116,6 +221,7 @@ export type Database = {
           detail?: string
           id?: never
           kind?: string
+          mandate_version?: number | null
           reference: string
           reverses_usage_id?: number | null
         }
@@ -127,6 +233,7 @@ export type Database = {
           detail?: string
           id?: never
           kind?: string
+          mandate_version?: number | null
           reference?: string
           reverses_usage_id?: number | null
         }
@@ -146,6 +253,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agent_usage_mandate_fk"
+            columns: ["agent_id", "mandate_version"]
+            isOneToOne: false
+            referencedRelation: "agent_mandate_versions"
+            referencedColumns: ["agent_id", "version"]
+          },
+          {
             foreignKeyName: "agent_usage_reverses_fk"
             columns: ["reverses_usage_id"]
             isOneToOne: false
@@ -158,8 +272,10 @@ export type Database = {
         Row: {
           approval_above: number | null
           created_at: string
+          current_mandate_version: number
           expires_at: string
           id: string
+          issuance_request_id: string | null
           monthly_spend_limit: number
           name: string
           owner_id: string
@@ -172,8 +288,10 @@ export type Database = {
         Insert: {
           approval_above?: number | null
           created_at?: string
+          current_mandate_version?: number
           expires_at?: string
           id?: string
+          issuance_request_id?: string | null
           monthly_spend_limit?: number
           name: string
           owner_id?: string
@@ -186,8 +304,10 @@ export type Database = {
         Update: {
           approval_above?: number | null
           created_at?: string
+          current_mandate_version?: number
           expires_at?: string
           id?: string
+          issuance_request_id?: string | null
           monthly_spend_limit?: number
           name?: string
           owner_id?: string
@@ -197,7 +317,15 @@ export type Database = {
           source?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agents_current_mandate_fk"
+            columns: ["id", "current_mandate_version"]
+            isOneToOne: false
+            referencedRelation: "agent_mandate_versions"
+            referencedColumns: ["agent_id", "version"]
+          },
+        ]
       }
       approval_requests: {
         Row: {
@@ -208,6 +336,7 @@ export type Database = {
           decided_at: string | null
           expires_at: string
           id: number
+          mandate_version: number | null
           reference: string
           requested_at: string
           status: string
@@ -220,6 +349,7 @@ export type Database = {
           decided_at?: string | null
           expires_at?: string
           id?: never
+          mandate_version?: number | null
           reference: string
           requested_at?: string
           status?: string
@@ -232,6 +362,7 @@ export type Database = {
           decided_at?: string | null
           expires_at?: string
           id?: never
+          mandate_version?: number | null
           reference?: string
           requested_at?: string
           status?: string
@@ -243,6 +374,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_mandate_fk"
+            columns: ["agent_id", "mandate_version"]
+            isOneToOne: false
+            referencedRelation: "agent_mandate_versions"
+            referencedColumns: ["agent_id", "version"]
           },
         ]
       }
@@ -359,6 +497,24 @@ export type Database = {
         }
         Relationships: []
       }
+      product_capabilities: {
+        Row: {
+          capability: string
+          enabled: boolean
+          enabled_at: string | null
+        }
+        Insert: {
+          capability: string
+          enabled?: boolean
+          enabled_at?: string | null
+        }
+        Update: {
+          capability?: string
+          enabled?: boolean
+          enabled_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -417,6 +573,7 @@ export type Database = {
         Args: { _public_id: string }
         Returns: {
           approval_above_usd: number
+          mandate_version: number
           monthly_limit_usd: number
           period_start: string
           remaining_usd: number
@@ -431,7 +588,9 @@ export type Database = {
           action: string
           amount_usd: number
           consumed: boolean
+          current_mandate_version: number
           expires_at: string
+          mandate_version: number
           status: string
         }[]
       }
@@ -489,12 +648,34 @@ export type Database = {
         }[]
       }
       gen_agent_public_id: { Args: never; Returns: string }
+      issue_agent: {
+        Args: {
+          _approval_above: number
+          _expires_at: string
+          _monthly_spend_limit: number
+          _name: string
+          _permissions: string[]
+          _public_key: string
+          _request_id: string
+          _source: string
+        }
+        Returns: {
+          id: string
+          mandate_version: number
+          public_id: string
+          result: string
+        }[]
+      }
       issue_agent_challenge: {
         Args: { _public_id: string; _purpose?: string }
         Returns: {
           expires_at: string
           nonce: string
         }[]
+      }
+      mandate_snapshot_hash: {
+        Args: { _agent_id: string; _version: number }
+        Returns: string
       }
       owner_identity_status: {
         Args: never
@@ -533,6 +714,24 @@ export type Database = {
           hash: string
         }[]
       }
+      reissue_agent_mandate: {
+        Args: {
+          _agent_id: string
+          _approval_above: number
+          _change_reason: string
+          _expected_version: number
+          _expires_at: string
+          _monthly_spend_limit: number
+          _owner_id: string
+          _permissions: string[]
+          _request_id: string
+        }
+        Returns: {
+          issued_at: string
+          mandate_version: number
+          result: string
+        }[]
+      }
       reserve_spend: {
         Args: {
           _amount_usd: number
@@ -548,16 +747,28 @@ export type Database = {
           usage_id: number
         }[]
       }
+      set_agent_status: {
+        Args: {
+          _agent_id: string
+          _expected_status: string
+          _new_status: string
+        }
+        Returns: string
+      }
       verify_agent: {
         Args: { _public_id: string }
         Returns: {
           approval_above: number
           created_at: string
+          credential_revision: string
           expires_at: string
           last_hash: string
+          mandate_issued_at: string
+          mandate_version: number
           monthly_spend_limit: number
           name: string
           owner_attestation_assurance: string
+          owner_attestation_expires_at: string
           owner_attestation_issuer: string
           owner_attestation_method: string
           owner_attestation_verified_at: string
