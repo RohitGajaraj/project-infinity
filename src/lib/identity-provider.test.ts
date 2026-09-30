@@ -157,8 +157,13 @@ describe("Didit hosted identity flow", () => {
     expect(verdict).toBeNull();
   });
 
-  test("provider test webhooks are authenticated and marked without creating standing", async () => {
-    const value = { ...payload(), webhook_type: "activity.created", vendor_data: "sample" };
+  test("provider test webhooks may omit event_id and never create standing", async () => {
+    const value: Record<string, unknown> = {
+      ...payload(),
+      webhook_type: "activity.created",
+      vendor_data: "test-vendor-data-123",
+    };
+    delete value["event_id"];
     const body = JSON.stringify(value);
     const signature = await hmac(canonicalJson(value));
     const verdict = await provider().parseWebhook(
@@ -169,7 +174,7 @@ describe("Didit hosted identity flow", () => {
         "x-didit-test-webhook": "true",
       }),
     );
-    expect(verdict).toEqual({ test: true, eventId: EVENT });
+    expect(verdict).toEqual({ test: true });
   });
 
   test("non-terminal and declined statuses remain distinct", async () => {

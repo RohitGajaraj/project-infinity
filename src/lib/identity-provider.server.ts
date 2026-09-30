@@ -33,7 +33,7 @@ export type VerificationVerdict = {
   subjectCountry: string;
 };
 
-export type VerificationWebhook = VerificationVerdict | { test: true; eventId: string };
+export type VerificationWebhook = VerificationVerdict | { test: true };
 
 export type IdentityProvider = {
   readonly issuer: AttestationIssuer;
@@ -151,13 +151,15 @@ export function diditProvider(
       // Signature verification needs the complete body. Everything after that
       // boundary operates on a recursively redacted projection.
       const safe = stripPii(parsed) as Record<string, unknown>;
-      const eventId = stringField(safe, "event_id", 100);
-      if (!eventId) return null;
 
       // Didit's console test is a signed transport test, not an identity result.
-      // Authenticate and acknowledge every test family without finalization.
-      if (isTestDelivery) return { test: true, eventId };
+      // Its generated payload may omit production-only event_id. Authenticity,
+      // freshness and body integrity are sufficient to acknowledge it; this union
+      // cannot reach the finalizer route branch.
+      if (isTestDelivery) return { test: true };
 
+      const eventId = stringField(safe, "event_id", 100);
+      if (!eventId) return null;
       const webhookType = stringField(safe, "webhook_type", 50);
       const environment = stringField(safe, "environment", 20);
       if (webhookType !== "status.updated" || environment !== config.environment) return null;
