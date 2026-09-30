@@ -17,6 +17,7 @@ export const Route = createFileRoute("/verify/$agentId")({
         publicKey: null,
         logHead: null,
         attestation: attestationFromRow({}),
+        credentialRevision: null,
       };
     }
 
@@ -28,8 +29,19 @@ export const Route = createFileRoute("/verify/$agentId")({
         publicKey: null,
         logHead: null,
         attestation: attestationFromRow({}),
+        credentialRevision: null,
       };
 
+    if (
+      !Number.isInteger(a.mandate_version) ||
+      typeof a.mandate_issued_at !== "string" ||
+      typeof a.credential_revision !== "string"
+    ) {
+      throw new Error("mandate_lifecycle_unavailable");
+    }
+    const mandateVersion = a.mandate_version!;
+    const mandateIssuedAt = a.mandate_issued_at;
+    const credentialRevision = a.credential_revision;
     const expired = new Date(a.expires_at).getTime() <= Date.now();
     const verdict: Verdict = expired ? "expired" : a.status === "valid" ? "valid" : "frozen";
     const attestation = attestationFromRow(a);
@@ -40,7 +52,8 @@ export const Route = createFileRoute("/verify/$agentId")({
       source: a.source,
       owner: `${a.owner_name ?? "Unnamed owner"} · self-declared label`,
       status: verdict === "expired" ? "expired" : verdict === "valid" ? "valid" : "frozen",
-      issued: fmtDate(a.created_at),
+      mandateVersion,
+      issued: fmtDate(mandateIssuedAt),
       expires: fmtDate(a.expires_at),
       limits: formatLimits(a),
     };
@@ -51,6 +64,7 @@ export const Route = createFileRoute("/verify/$agentId")({
       publicKey: a.public_key,
       logHead: a.last_hash,
       attestation,
+      credentialRevision,
     };
   },
   head: ({ params }) => ({
@@ -116,7 +130,8 @@ const COPY: Record<Verdict, { tone: Tone; label: string; headline: string; body:
 
 function VerifyPage() {
   const { agentId } = Route.useParams();
-  const { verdict, agent, publicKey, logHead, attestation } = Route.useLoaderData();
+  const { verdict, agent, publicKey, logHead, attestation, credentialRevision } =
+    Route.useLoaderData();
   const copy = COPY[verdict];
 
   return (
@@ -145,7 +160,11 @@ function VerifyPage() {
             </p>
           ) : (
             <>
-              <EvidenceSummary verdict={verdict} attestation={attestation} />
+              <EvidenceSummary
+                verdict={verdict}
+                attestation={attestation}
+                mandateVersion={agent.mandateVersion ?? 1}
+              />
               <CredentialCheck agentId={agent.id} />
             </>
           )}
@@ -156,6 +175,12 @@ function VerifyPage() {
                 <dt>Agent's own signing key</dt>
                 <dd className="mt-1 break-all font-mono">{publicKey}</dd>
               </div>
+              {credentialRevision && (
+                <div>
+                  <dt>Current credential revision</dt>
+                  <dd className="mt-1 break-all font-mono">{credentialRevision}</dd>
+                </div>
+              )}
               {logHead && (
                 <div>
                   <dt>Latest activity-log entry</dt>
@@ -177,8 +202,8 @@ function VerifyPage() {
 curl -s "https://infinity.id/api/public/credential/${agentId}"
 curl -s "https://infinity.id/.well-known/jwks.json"
 
-# Current status — the only required live call
-curl -s "https://infinity.id/api/public/status/${agentId}"
+# Current status — call vc.credentialStatus.id from the verified JWT.
+# It includes mandate_version + revision; an agent-only URL fails closed.
 
 # Full credential + possession test vector
 curl -s "https://infinity.id/api/public/sandbox"`}
@@ -196,9 +221,11 @@ curl -s "https://infinity.id/api/public/sandbox"`}
 function EvidenceSummary({
   verdict,
   attestation,
+  mandateVersion,
 }: {
   verdict: Verdict;
   attestation: OwnerAttestation;
+  mandateVersion: number;
 }) {
   const live = verdict === "valid";
   const ownerChecked = attestation.assurance !== "none";
@@ -213,6 +240,7 @@ function EvidenceSummary({
           value={live ? "Live" : verdict === "expired" ? "Expired" : "Frozen"}
           tone={live ? "good" : "bad"}
         />
+        <EvidenceRow label="Mandate version" value={`Current · v${mandateVersion}`} tone="good" />
         <EvidenceRow
           label="Presenter holds agent key"
           value="Not checked on a shared page"

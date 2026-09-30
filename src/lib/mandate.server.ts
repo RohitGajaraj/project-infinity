@@ -51,20 +51,27 @@ type AllowanceRow = {
   monthly_limit_usd: number | string;
   spent_this_month_usd: number | string;
   remaining_usd: number | string;
-  approval_above_usd: number | string;
+  approval_above_usd: number | string | null;
   period_start: string;
+  mandate_version?: number;
 };
 
 export async function getAllowance(publicId: string): Promise<Allowance | null> {
   // Numeric columns arrive as strings over PostgREST, so coerce rather than trust.
-  const row = await publicRpc("agent_allowance", { _public_id: publicId });
+  const row = (await publicRpc("agent_allowance", {
+    _public_id: publicId,
+  })) as unknown as AllowanceRow | null;
   if (!row) return null;
+  if (!Number.isInteger(row.mandate_version) || (row.mandate_version ?? 0) < 1) {
+    throw new Error("mandate_lifecycle_unavailable");
+  }
   return {
     monthlyLimitUsd: Number(row.monthly_limit_usd),
     spentThisMonthUsd: Number(row.spent_this_month_usd),
     remainingUsd: Number(row.remaining_usd),
-    approvalAboveUsd: Number(row.approval_above_usd),
+    approvalAboveUsd: row.approval_above_usd === null ? null : Number(row.approval_above_usd),
     periodStart: row.period_start,
+    mandateVersion: row.mandate_version!,
   };
 }
 
@@ -137,11 +144,13 @@ export async function createApprovalRequest(input: {
 }
 
 export type ApprovalState = {
-  status: "pending" | "approved" | "denied" | "expired";
+  status: "pending" | "approved" | "denied" | "expired" | "superseded";
   amountUsd: number;
   action: string;
   expiresAt: string;
   consumed: boolean;
+  mandateVersion: number | null;
+  currentMandateVersion: number;
 };
 
 type ApprovalStateRow = {
@@ -150,22 +159,29 @@ type ApprovalStateRow = {
   action: string;
   expires_at: string;
   consumed: boolean;
+  mandate_version?: number | null;
+  current_mandate_version?: number;
 };
 
 export async function getApprovalState(
   publicId: string,
   reference: string,
 ): Promise<ApprovalState | null> {
-  const row = await adminRpc("approval_state", {
+  const row = (await adminRpc("approval_state", {
     _public_id: publicId,
     _reference: reference,
-  });
+  })) as unknown as ApprovalStateRow | null;
   if (!row) return null;
+  if (!Number.isInteger(row.current_mandate_version)) {
+    throw new Error("mandate_lifecycle_unavailable");
+  }
   return {
     status: row.status as ApprovalState["status"],
     amountUsd: Number(row.amount_usd),
     action: row.action,
     expiresAt: row.expires_at,
     consumed: row.consumed === true,
+    mandateVersion: row.mandate_version ?? null,
+    currentMandateVersion: row.current_mandate_version!,
   };
 }

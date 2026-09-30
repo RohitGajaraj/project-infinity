@@ -36,6 +36,8 @@ export type OwnerAttestation = {
   assurance: AssuranceLevel;
   /** ISO-8601, or null when nothing has been checked. */
   verifiedAt: string | null;
+  /** When this operator-asserted evidence stops contributing standing. */
+  expiresAt: string | null;
   /**
    * Always true for this field. Present in the payload so a verifier reading the
    * credential cannot mistake it for something they can check themselves.
@@ -48,6 +50,7 @@ export const UNVERIFIED: OwnerAttestation = {
   method: "email_only",
   assurance: "none",
   verifiedAt: null,
+  expiresAt: null,
   operatorAsserted: true,
 };
 
@@ -136,6 +139,7 @@ export function attestationFromRow(row: {
   owner_attestation_method?: string | null;
   owner_attestation_assurance?: string | null;
   owner_attestation_verified_at?: string | null;
+  owner_attestation_expires_at?: string | null;
 }): OwnerAttestation {
   const issuer = row.owner_attestation_issuer;
   const method = row.owner_attestation_method;
@@ -149,6 +153,7 @@ export function attestationFromRow(row: {
     method,
     assurance,
     verifiedAt: row.owner_attestation_verified_at ?? null,
+    expiresAt: row.owner_attestation_expires_at ?? null,
     operatorAsserted: true,
   };
 }

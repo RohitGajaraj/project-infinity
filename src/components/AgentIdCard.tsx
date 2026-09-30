@@ -4,6 +4,7 @@ export type AgentCard = {
   source: string;
   owner: string;
   status: "valid" | "frozen" | "expired";
+  mandateVersion?: number;
   issued: string;
   expires: string;
   limits: string[];
@@ -29,6 +30,7 @@ export function AgentIdCard({ agent }: { agent: AgentCard }) {
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             Infinity · Agent passport
+            {agent.mandateVersion ? ` · Mandate v${agent.mandateVersion}` : ""}
           </p>
           <h3 className="mt-3 font-serif text-4xl leading-none">{agent.name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">via {agent.source}</p>

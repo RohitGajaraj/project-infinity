@@ -75,7 +75,7 @@ export function createVerifier(options: VerifierOptions = {}) {
   const doFetch = options.fetchImpl ?? fetch;
 
   let jwksCache: { at: number; jwks: Jwks } | undefined;
-  const statusCache = new Map<string, { at: number; usable: boolean; status: string }>();
+  const statusCache = new Map<string, { at: number; usable: boolean; detail: string }>();
   const outstandingChallenges = new Map<string, number>();
 
   function challenge(): string {
@@ -98,22 +98,34 @@ export function createVerifier(options: VerifierOptions = {}) {
   }
 
   async function getStatus(
-    agentId: string,
+    statusUrl: string,
   ): Promise<{ usable: boolean; status: string; cached: boolean }> {
-    const hit = statusCache.get(agentId);
+    const hit = statusCache.get(statusUrl);
     if (hit && statusTtlMs > 0 && Date.now() - hit.at < statusTtlMs) {
-      return { usable: hit.usable, status: hit.status, cached: true };
+      return { usable: hit.usable, status: hit.detail, cached: true };
     }
-    const res = await doFetch(`${issuer}/api/public/status/${encodeURIComponent(agentId)}`);
+    const url = new URL(statusUrl);
+    if (url.origin !== issuer || !url.pathname.startsWith("/api/public/status/")) {
+      throw new Error("Credential status URL is outside the trusted issuer.");
+    }
+    const res = await doFetch(url.toString());
     if (!res.ok && res.status !== 404) throw new Error(`Status check failed: HTTP ${res.status}`);
-    const body = (await res.json()) as { status?: string; usable?: boolean };
+    const body = (await res.json()) as {
+      status?: string;
+      credential_status?: string;
+      usable?: boolean;
+    };
+    const detail =
+      body.credential_status && body.credential_status !== "current"
+        ? body.credential_status
+        : (body.status ?? "unknown");
     const entry = {
       at: Date.now(),
       usable: body.usable === true,
-      status: body.status ?? "unknown",
+      detail,
     };
-    statusCache.set(agentId, entry);
-    return { usable: entry.usable, status: entry.status, cached: false };
+    statusCache.set(statusUrl, entry);
+    return { usable: entry.usable, status: entry.detail, cached: false };
   }
 
   return {
@@ -171,7 +183,7 @@ export function createVerifier(options: VerifierOptions = {}) {
       // 4. Has the owner switched it off since issuance? The one unavoidable call.
       let status: { usable: boolean; status: string; cached: boolean };
       try {
-        status = await getStatus(credential.subject.id);
+        status = await getStatus(credential.statusUrl);
       } catch (error) {
         return {
           trusted: false,
@@ -183,6 +195,9 @@ export function createVerifier(options: VerifierOptions = {}) {
         return { trusted: false, reason: "not_live", detail: status.status };
       }
 
+      // This is a point-in-time identity result, not a lock on future state. A
+      // sensitive executor must recheck status immediately before acting, or use
+      // an atomic Infinity enforcement path such as reserve_spend.
       return { trusted: true, agent: credential.subject, statusFromCache: status.cached };
     },
 

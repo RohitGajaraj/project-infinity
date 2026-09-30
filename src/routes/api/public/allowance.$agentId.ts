@@ -37,6 +37,7 @@ export const Route = createFileRoute("/api/public/allowance/$agentId")({
             spent_this_month_usd: allowance.spentThisMonthUsd,
             remaining_usd: allowance.remainingUsd,
             approval_above_usd: allowance.approvalAboveUsd,
+            mandate_version: allowance.mandateVersion,
             period_start: allowance.periodStart,
             checked_at: new Date().toISOString(),
           }),

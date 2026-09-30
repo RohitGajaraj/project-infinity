@@ -28,8 +28,9 @@ export type Allowance = {
   monthlyLimitUsd: number;
   spentThisMonthUsd: number;
   remainingUsd: number;
-  approvalAboveUsd: number;
+  approvalAboveUsd: number | null;
   periodStart: string;
+  mandateVersion: number;
 };
 
 export type SpendDecision =

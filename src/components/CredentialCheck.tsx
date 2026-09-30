@@ -19,6 +19,8 @@ type State =
       kid: string;
       issuer: string;
       expires: string;
+      mandateVersion: number;
+      revision: string;
       provisional: boolean;
       warning?: string;
     }
@@ -89,6 +91,8 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
               month: "short",
               year: "numeric",
             }),
+            mandateVersion: result.subject.mandate.version ?? 1,
+            revision: result.payload.credentialRevision ?? "legacy",
             provisional,
             ...(warning ? { warning } : {}),
           });
@@ -136,6 +140,8 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
           <dl className="mt-4 space-y-2 border-t border-border pt-4 text-xs">
             <Row label="Issuer" value={state.issuer} />
             <Row label="Signing key" value={state.kid} mono />
+            <Row label="Mandate" value={`v${state.mandateVersion}`} />
+            <Row label="Credential revision" value={state.revision} mono />
             <Row label="Credential expires" value={state.expires} />
           </dl>
         </>

@@ -230,7 +230,7 @@ export async function issuerMetadata(origin: string) {
     issuer: origin,
     jwks_uri: `${origin}/.well-known/jwks.json`,
     credential_endpoint: `${origin}/api/public/credential/{agent_id}`,
-    status_endpoint: `${origin}/api/public/status/{agent_id}`,
+    status_endpoint: `${origin}/api/public/status/{agent_id}?mandate_version={mandate_version}&revision={credential_revision}`,
     verify_endpoint: `${origin}/api/public/verify/{agent_id}`,
     credential_types_supported: ["AgentIdentityCredential"],
     credential_formats_supported: ["vc+jwt"],

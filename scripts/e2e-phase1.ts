@@ -66,20 +66,31 @@ check("public key is 32 raw bytes", parseStoredPublicKey(storedPub)?.length === 
 
 // ---------------------------------------------------------------- 3. issue
 step("3. Issue the agent");
-const created = await fetch(`${SUPABASE_URL}/rest/v1/agents?select=id,public_id,owner_id`, {
-  method: "POST",
-  headers: { ...authed, Prefer: "return=representation" },
-  body: JSON.stringify({
-    name: "Atlas",
-    source: "Claude Code",
-    public_key: storedPub,
-    permissions: ["Send email", "Book appointments"],
-    monthly_spend_limit: 200,
-    approval_above: 50,
-  }),
+const issueRequestId = crypto.randomUUID();
+const issueBody = JSON.stringify({
+  _name: "Atlas",
+  _source: "Claude Code",
+  _public_key: storedPub,
+  _permissions: ["Send email", "Book appointments"],
+  _monthly_spend_limit: 200,
+  _approval_above: 50,
+  _expires_at: new Date(Date.now() + 180 * 86_400_000).toISOString(),
+  _request_id: issueRequestId,
 });
+const issueOnce = () =>
+  fetch(`${SUPABASE_URL}/rest/v1/rpc/issue_agent`, {
+    method: "POST",
+    headers: authed,
+    body: issueBody,
+  });
+const [created, concurrentRetry] = await Promise.all([issueOnce(), issueOnce()]);
 const rows = (await created.json()) as Array<{ id: string; public_id: string }>;
-check("agent created", created.status === 201 && Array.isArray(rows) && !!rows[0]);
+const concurrentRows = (await concurrentRetry.json()) as Array<{ id: string; public_id: string }>;
+check("agent and mandate v1 created atomically", created.status === 200 && !!rows[0]);
+check(
+  "concurrent issue retry returns the same agent",
+  concurrentRetry.status === 200 && concurrentRows[0]?.id === rows[0]?.id,
+);
 if (!rows?.[0]) {
   console.error("  cannot continue:", JSON.stringify(rows).slice(0, 240));
   process.exit(1);
@@ -94,8 +105,12 @@ const spoof = await fetch(`${SUPABASE_URL}/rest/v1/agents`, {
   body: JSON.stringify({
     owner_id: "00000000-0000-0000-0000-000000000001",
     name: "Impostor",
-    source: "custom",
-    public_key: "ed25519:AAAA",
+    source: "Custom / API",
+    public_key: storedPub,
+    permissions: ["Send email"],
+    monthly_spend_limit: 0,
+    approval_above: 0,
+    expires_at: new Date(Date.now() + 86_400_000).toISOString(),
   }),
 });
 check(
@@ -103,6 +118,10 @@ check(
   spoof.status === 401 || spoof.status === 403,
   `HTTP ${spoof.status}`,
 );
+const spoofRows = await fetch(`${SUPABASE_URL}/rest/v1/agents?name=eq.Impostor&select=id`, {
+  headers: authed,
+}).then((response) => response.json() as Promise<unknown[]>);
+check("rejected ownership spoof created no agent", spoofRows.length === 0);
 
 // ---------------------------------------------------------------- 4. verify
 step("4. What a business sees");
@@ -112,7 +131,9 @@ check("owner is named", typeof verify.owner?.name === "string");
 check("identity_verified is reported honestly as false", verify.owner?.identity_verified === false);
 check(
   "mandate is exposed",
-  verify.monthly_spend_limit_usd === 200 && verify.approval_above_usd === 50,
+  verify.monthly_spend_limit_usd === 200 &&
+    verify.approval_above_usd === 50 &&
+    verify.mandate_version === 1,
 );
 
 // ---------------------------------------------------------------- 5. offline
@@ -158,12 +179,19 @@ check("agent can prove it holds the key named in its credential", holds);
 
 // ---------------------------------------------------------------- 7. freeze
 step("7. Off switch reaches the verifier");
-await fetch(`${SUPABASE_URL}/rest/v1/agents?public_id=eq.${agentId}`, {
-  method: "PATCH",
-  headers: authed,
-  body: JSON.stringify({ status: "frozen" }),
-});
-const status = await fetch(`${APP}/api/public/status/${agentId}`).then((r) => r.json());
+async function setAgentStatus(expected: "valid" | "frozen", next: "valid" | "frozen") {
+  return fetch(`${SUPABASE_URL}/rest/v1/rpc/set_agent_status`, {
+    method: "POST",
+    headers: authed,
+    body: JSON.stringify({
+      _agent_id: rows[0]!.id,
+      _expected_status: expected,
+      _new_status: next,
+    }),
+  });
+}
+await setAgentStatus("valid", "frozen");
+const status = await fetch(cred.status_endpoint).then((r) => r.json());
 check("status flips to frozen", status.status === "frozen");
 check("usable is false", status.usable === false);
 
@@ -188,12 +216,8 @@ step("9. The MCP surface, driven as an agent would");
 
 // Step 7 froze this agent, and a frozen agent is correctly locked out of MCP.
 // Unfreeze to exercise the tools, then re-freeze to prove the lockout.
-await fetch(`${SUPABASE_URL}/rest/v1/agents?public_id=eq.${agentId}`, {
-  method: "PATCH",
-  headers: authed,
-  body: JSON.stringify({ status: "valid" }),
-});
-const unfrozen = await fetch(`${APP}/api/public/status/${agentId}`).then((r) => r.json());
+await setAgentStatus("frozen", "valid");
+const unfrozen = await fetch(cred.status_endpoint).then((r) => r.json());
 check("owner can unfreeze", unfrozen.usable === true);
 
 let rpcId = 0;
@@ -271,6 +295,16 @@ check(
   "get_limits returns the mandate",
   lim.monthly_spend_limit_usd === 200 && lim.owner_approval_required_above_usd === 50,
 );
+
+const recordedSpend = toolJson(
+  (
+    await rpc("tools/call", {
+      name: "record_spend",
+      arguments: { amount_usd: 10, detail: "Lifecycle probe", reference: `life-${Date.now()}` },
+    })
+  ).body,
+);
+check("spend is recorded under mandate v1", recordedSpend.allowed === true);
 
 const cheap = toolJson(
   (
@@ -435,13 +469,57 @@ check(
   parallel.every((response) => response.status === 200),
 );
 
-// Re-freeze: the off switch must cut the agent off from Infinity itself, not just
-// from businesses checking its status.
-await fetch(`${SUPABASE_URL}/rest/v1/agents?public_id=eq.${agentId}`, {
+step("9c. Mandate lifecycle expansion is not exposed before publication");
+const directReissue = await fetch(`${SUPABASE_URL}/rest/v1/rpc/reissue_agent_mandate`, {
+  method: "POST",
+  headers: authed,
+  body: JSON.stringify({
+    _owner_id: signup.user?.id,
+    _agent_id: rows[0]!.id,
+    _expected_version: 1,
+    _permissions: ["Send email", "Book appointments", "Talk to other agents"],
+    _monthly_spend_limit: 150,
+    _approval_above: 25,
+    _expires_at: verify.expires_at,
+    _request_id: crypto.randomUUID(),
+    _change_reason: "Direct call must remain unavailable",
+  }),
+});
+check("authenticated clients cannot call service-only reissue", directReissue.status >= 400);
+
+const usageRows = (await fetch(
+  `${SUPABASE_URL}/rest/v1/agent_usage?agent_id=eq.${rows[0]!.id}&select=mandate_version`,
+  { headers: authed },
+).then((r) => r.json())) as Array<{ mandate_version: number }>;
+check("usage records the authorizing mandate version", usageRows[0]?.mandate_version === 1);
+
+const directMandateWrite = await fetch(`${SUPABASE_URL}/rest/v1/agents?id=eq.${rows[0]!.id}`, {
   method: "PATCH",
   headers: authed,
-  body: JSON.stringify({ status: "frozen" }),
+  body: JSON.stringify({ monthly_spend_limit: 999999 }),
 });
+check("direct mandate mutation is denied", directMandateWrite.status >= 400);
+const mandateHistory = (await fetch(
+  `${SUPABASE_URL}/rest/v1/agent_mandate_versions?agent_id=eq.${rows[0]!.id}&select=version&order=version.asc`,
+  { headers: authed },
+).then((r) => r.json())) as Array<{ version: number }>;
+check(
+  "owner sees immutable mandate v1 history",
+  mandateHistory.map((row) => row.version).join(",") === "1",
+);
+const mutateHistory = await fetch(
+  `${SUPABASE_URL}/rest/v1/agent_mandate_versions?agent_id=eq.${rows[0]!.id}&version=eq.1`,
+  {
+    method: "PATCH",
+    headers: authed,
+    body: JSON.stringify({ monthly_spend_limit: 999999 }),
+  },
+);
+check("owner cannot mutate immutable mandate history", mutateHistory.status >= 400);
+
+// Re-freeze: the off switch must cut the agent off from Infinity itself, not just
+// from businesses checking its status.
+await setAgentStatus("valid", "frozen");
 const afterFreeze = await rpc("tools/call", { name: "whoami", arguments: {} });
 check(
   "a frozen agent is locked out of MCP entirely",

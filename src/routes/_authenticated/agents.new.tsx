@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ConsoleShell } from "@/components/ConsoleShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +43,8 @@ function NewAgent() {
   const [issued, setIssued] = useState<Issued | null>(null);
   const [copied, setCopied] = useState<"secret" | "id" | "verify" | null>(null);
   const [stored, setStored] = useState(false);
+  const [requestId] = useState(() => crypto.randomUUID());
+  const keysRef = useRef<Awaited<ReturnType<typeof generateAgentKeys>> | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,28 +70,37 @@ function NewAgent() {
 
     setBusy(true);
     try {
-      const keys = await generateAgentKeys();
-      const { data: userResult, error: userError } = await supabase.auth.getUser();
-      if (userError || !userResult.user) throw new Error("Your session expired. Sign in again.");
-
-      const { data, error } = await supabase
-        .from("agents")
-        .insert({
-          owner_id: userResult.user.id,
-          name: name.trim(),
-          source,
-          public_key: keys.publicKey,
-          permissions: perms,
-          monthly_spend_limit: spend,
-          approval_above: approve,
-          expires_at: expiry.toISOString(),
-        })
-        .select("id, public_id")
-        .single();
-      if (error) throw error;
+      const keys = keysRef.current ?? (await generateAgentKeys());
+      keysRef.current = keys;
+      const client = supabase as unknown as {
+        rpc: (
+          name: string,
+          params: Record<string, unknown>,
+        ) => Promise<{
+          data: Array<{ id: string; public_id: string; mandate_version: number }> | null;
+          error: { message: string } | null;
+        }>;
+      };
+      const { data, error } = await client.rpc("issue_agent", {
+        _name: name.trim(),
+        _source: source,
+        _public_key: keys.publicKey,
+        _permissions: perms,
+        _monthly_spend_limit: spend,
+        _approval_above: approve,
+        _expires_at: expiry.toISOString(),
+        _request_id: requestId,
+      });
+      if (error) throw new Error(error.message);
+      const issuedAgent = data?.[0];
+      if (!issuedAgent) throw new Error("The credential was not returned after issuance.");
 
       void qc.invalidateQueries({ queryKey: ["agents"] });
-      setIssued({ id: data.id, publicId: data.public_id, secret: keys.secretKey });
+      setIssued({
+        id: issuedAgent.id,
+        publicId: issuedAgent.public_id,
+        secret: keys.secretKey,
+      });
     } catch (error) {
       setErr(error instanceof Error ? error.message : "The credential could not be issued.");
     } finally {

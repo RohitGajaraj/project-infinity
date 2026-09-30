@@ -20,6 +20,7 @@ const FRESH: Allowance = {
   remainingUsd: 200,
   approvalAboveUsd: 50,
   periodStart: "2026-09-01T00:00:00.000Z",
+  mandateVersion: 1,
 };
 
 describe("spending inside the mandate", () => {

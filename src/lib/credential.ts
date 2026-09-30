@@ -44,6 +44,8 @@ export type AgentCredentialSubject = {
     attestation: OwnerAttestation;
   };
   mandate: {
+    version: number;
+    issuedAt: string;
     permissions: string[];
     monthlySpendLimitUsd: number;
     /** null = no approval gate; 0 = every spend needs approval. */
@@ -58,6 +60,7 @@ export type AgentCredentialPayload = {
   iat: number;
   nbf: number;
   exp: number;
+  credentialRevision: string;
   vc: {
     "@context": readonly string[];
     type: readonly string[];
@@ -91,6 +94,10 @@ export type CredentialSource = {
   owner_attestation_method?: string | null;
   owner_attestation_assurance?: string | null;
   owner_attestation_verified_at?: string | null;
+  owner_attestation_expires_at?: string | null;
+  mandate_version?: number;
+  mandate_issued_at?: string;
+  credential_revision?: string;
 };
 
 function toSeconds(iso: string): number {
@@ -106,9 +113,17 @@ export function buildCredentialPayload(
   origin: string,
 ): AgentCredentialPayload {
   const issuer = origin;
-  const iat = toSeconds(agent.created_at);
-  const exp = toSeconds(agent.expires_at);
+  const version = agent.mandate_version ?? 1;
+  const mandateIssuedAt = agent.mandate_issued_at ?? agent.created_at;
+  const revision = agent.credential_revision ?? `legacy-v${version}`;
+  const iat = toSeconds(mandateIssuedAt);
+  const mandateExp = toSeconds(agent.expires_at);
   const attestation = attestationFromRow(agent);
+  const attestationExp = attestation.expiresAt ? toSeconds(attestation.expiresAt) : null;
+  const exp =
+    attestation.assurance !== "none" && attestationExp !== null
+      ? Math.min(mandateExp, attestationExp)
+      : mandateExp;
   const subject: AgentCredentialSubject = {
     id: agent.public_id,
     name: agent.name,
@@ -122,6 +137,8 @@ export function buildCredentialPayload(
       attestation,
     },
     mandate: {
+      version,
+      issuedAt: mandateIssuedAt,
       permissions: agent.permissions ?? [],
       monthlySpendLimitUsd: agent.monthly_spend_limit,
       approvalAboveUsd: agent.approval_above,
@@ -130,10 +147,11 @@ export function buildCredentialPayload(
   return {
     iss: issuer,
     sub: agent.public_id,
-    jti: `${issuer}/credentials/${agent.public_id}`,
+    jti: `${issuer}/credentials/${agent.public_id}/m${version}/${revision}`,
     iat,
     nbf: iat,
     exp,
+    credentialRevision: revision,
     vc: {
       "@context": VC_CONTEXT,
       type: ["VerifiableCredential", CREDENTIAL_TYPE],
@@ -142,7 +160,7 @@ export function buildCredentialPayload(
       validUntil: new Date(exp * 1000).toISOString(),
       credentialSubject: subject,
       credentialStatus: {
-        id: `${issuer}/api/public/status/${agent.public_id}`,
+        id: `${issuer}/api/public/status/${agent.public_id}?mandate_version=${version}&revision=${encodeURIComponent(revision)}`,
         type: "InfinityStatusEndpoint",
       },
     },

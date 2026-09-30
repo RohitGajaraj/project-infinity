@@ -1336,8 +1336,9 @@ and insurance rails remain labelled as roadmap rather than appearing in current-
   signal.
 
 Lovable applied `20260930030000_bound_agent_challenges.sql` as live migration `0009` on
-2026-09-30. The supervisor verified mirror fidelity, grants and the live database state; signed MCP
-requests and the public-ID impersonation probe pass. This historical deployment requirement is closed.
+2026-09-30. The supervisor verified mirror fidelity, grants and the live database state. Signed MCP
+requests and the public-ID impersonation probe passed in Kiro's §17.4 probe; the supervisor did not
+re-run those two probes. This historical deployment requirement is closed.
 
 ### 17.5 What remains, in order
 
@@ -1653,3 +1654,125 @@ The foundation flow has now run against the published system at
 This closes §19.9 item 1's sandbox mechanism test. It does **not** make production credentials ready
 for reliance: issuer metadata still reports `key_mode: provisional`, so the founder must install an
 explicit issuer JWK before real users depend on one.
+
+---
+
+## 20. Mandate lifecycle: immutable authority, 2026-09-30
+
+A mutable `agents` row previously let two materially different signed mandates share one credential
+identifier and one agent-wide status answer. An old broader credential could remain cryptographically
+valid and receive a live status after the current row changed. This section makes edit/reissue semantics
+explicit and is §19.9 item 2.
+
+### 20.1 Stable identity, versioned authority
+
+The Agent ID, owner relationship and Ed25519 key remain stable. Key changes belong to §19.9 item 3 and
+cannot be smuggled through a mandate edit. Mandate authority is append-only:
+
+- every agent starts at mandate v1;
+- every permission, cap, threshold or expiry change appends and activates `N+1`;
+- no version is edited or deleted;
+- a no-op records its request result without inventing a version;
+- rollback copies an older version into a new `N+1`; the pointer never moves backward; and
+- freeze/unfreeze remains an orthogonal emergency switch and does not create a mandate version.
+
+`agent_mandate_versions` is the immutable record. `agents` retains a current projection for efficient
+locking and compatibility, but a database trigger permits projection changes only when they move
+exactly `N → N+1` and exactly match the already-inserted snapshot. Identity fields remain immutable.
+
+### 20.2 Signed credential and live supersession
+
+Every new credential carries `mandate.version` and `mandate.issuedAt`. Its JTI and signed status URL
+include both the mandate version and a deterministic SHA-256 revision of every signed mutable claim,
+including current owner-attestation evidence. Revision timestamps are hashed as UTC epoch microseconds,
+not session-formatted text.
+
+Offline signature verification remains historical evidence: it proves what Infinity issued. Live
+status answers whether that exact version/revision is still current. The dimensions are separate:
+
+- `agent_status`: valid, frozen or expired;
+- `credential_status`: current, superseded, expired or legacy;
+- `usable`: true only for the exact current version/revision on a valid, unexpired agent.
+
+Unversioned legacy status URLs fail closed. Owner-evidence expiry caps the credential expiry. A verifier
+follows `vc.credentialStatus.id` from the signed credential rather than constructing an agent-only URL,
+and reports `superseded` rather than the misleading agent-level `valid` reason.
+
+This remains a point-in-time answer, not a lock on future state. Sensitive external executors must
+recheck immediately before acting; Infinity-owned enforcement such as spend reservation rechecks under
+the same agent lock as reissue.
+
+### 20.3 Ledger and approval continuity
+
+Reissue never resets monthly spend, idempotency references or activity history. New usage rows record
+the active mandate version. Lowering a cap below already-spent value leaves zero headroom; raising a cap
+opens only the delta.
+
+New approval requests record the version that created them. Reissue makes older and legacy approvals
+`superseded`: they cannot be decided or consumed, but remain in owner history. Exact action-bound,
+owner-signed approval receipts remain §19.9 item 4; this lifecycle item establishes correct version
+provenance without overstating that later receipt guarantee.
+
+### 20.4 Idempotency and concurrency
+
+Initial issuance serializes on owner plus request ID and compares the complete normalized payload on
+retry. Reissue locks the agent first, then binds request ID to expected version, complete normalized
+payload, reason and durable result. Accepted no-op results are stored. The same request can never mean a
+different change later.
+
+Issue, reissue, status, approval creation/decision and spend use compatible agent-first locking. If a
+spend wins, it commits under the old version and is tagged accordingly; if reissue wins, old approvals
+become ineligible before spend checks them.
+
+### 20.5 Expansion-safe rollout and irreversible trust-route floor
+
+`20260930050000_mandate_lifecycle.sql` is an **expansion migration**:
+
+1. Existing agents are backfilled as v1. Historical v1 shapes are explicitly grandfathered rather than
+   pretending they passed today's issuance checks.
+2. The currently published direct-create path remains compatible: a guarded trigger validates the
+   insert and atomically creates v1 before the deferred current-version FK is checked.
+3. The currently published direct freeze path remains compatible. Direct identity or mandate edits are
+   rejected by the projection trigger.
+4. Reissue is service-role-only and `product_capabilities.mandate_reissue` starts `false`.
+5. The new app is published and the supervisor probes version-aware credential/status/Verify paths,
+   old create/freeze compatibility, v1 history, and that app-mediated reissue returns
+   `mandate_reissue_not_enabled` without creating v2.
+6. Only then does a separate activation/contract migration enable reissue and remove temporary direct
+   insert/update grants and policies.
+7. Post-activation acceptance creates v2, proves v1 `superseded`, proves v2 current, and checks ledger
+   and approval version binding.
+
+**Once the version-aware application is published, its credential/status trust routes are the minimum
+rollback floor even before reissue activation.** Owner-label or attestation revision can supersede a v1
+without changing mandate version. Recovery after that point is roll-forward, or a rollback build must
+preserve the version-aware trust routes. Restoring agent-only status would reactivate superseded owner
+evidence and is forbidden by `AGENTS.md`.
+
+### 20.6 Owner experience
+
+The agent detail page shows the active version and immutable history. “Edit” creates a local draft;
+“Activate” reissues a new version with a required reason. Authority expansion—new permissions, higher
+cap, weaker approval gate or longer expiry—is called out before activation. “Use as draft” copies an
+older snapshot but still creates a new monotonic version. Spend continuity and one-time key behavior are
+stated explicitly.
+
+The expansion ships disabled. Seeing the editor before activation is intentional; it returns a clear
+“installed but not activated” message until the supervisor-verified activation migration is live.
+
+### 20.7 Source state before supervisor relay
+
+Adversarial review is **approved** after resolving expansion/rollback ordering, direct-write
+compatibility, legacy v1 backfill, projection binding, durable issued/no-op idempotency, superseded
+approval decisions, UTC microsecond revisions, credential-level status reasons, valid ownership probes,
+full snapshot chain anchoring and TRUNCATE guards.
+
+- `bunx tsc --noEmit`: pass
+- `bun run lint`: 0 errors (7 existing Fast Refresh warnings)
+- `bun test`: 210 pass, 0 fail
+- `bun run build`: pass
+- `git diff --check`: pass
+
+This is source readiness, not live completion. `coordination/STATUS.md` and the open mandate expansion
+request own the apply/publish/probe truth. Reissue remains capability-disabled until a later reviewed
+activation migration.

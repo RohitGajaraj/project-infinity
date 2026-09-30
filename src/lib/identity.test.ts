@@ -16,6 +16,7 @@ const HIGH: OwnerAttestation = {
   method: "government_id_and_liveness",
   assurance: "high",
   verifiedAt: "2026-09-20T00:00:00.000Z",
+  expiresAt: "2027-09-20T00:00:00.000Z",
   operatorAsserted: true,
 };
 
@@ -48,6 +49,7 @@ describe("reading an attestation off a verify_agent row", () => {
       owner_attestation_method: "government_id_and_liveness",
       owner_attestation_assurance: "high",
       owner_attestation_verified_at: "2026-09-20T00:00:00.000Z",
+      owner_attestation_expires_at: "2027-09-20T00:00:00.000Z",
     });
     expect(a).toEqual(HIGH);
   });

@@ -229,7 +229,14 @@ export type McpContext = {
   checkApproval?: (
     publicId: string,
     reference: string,
-  ) => Promise<{ status: string; amountUsd: number; action: string; consumed: boolean } | null>;
+  ) => Promise<{
+    status: string;
+    amountUsd: number;
+    action: string;
+    consumed: boolean;
+    mandateVersion?: number | null;
+    currentMandateVersion?: number;
+  } | null>;
   /** Current allowance, so guidance reflects what is actually left. */
   getAllowance?: (publicId: string) => Promise<Allowance | null>;
   /** Enforce and record a spend. Atomic on the database side. */
@@ -258,6 +265,9 @@ export type AgentView = {
   approval_above: number | null;
   created_at: string;
   expires_at: string;
+  mandate_version?: number;
+  mandate_issued_at?: string;
+  credential_revision?: string;
 };
 
 export type ToolOutcome = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
@@ -304,6 +314,7 @@ function selfView(agent: AgentView, origin: string) {
     name: agent.name,
     platform: agent.source,
     status: agent.status,
+    mandate_version: agent.mandate_version ?? 1,
     acting_for: {
       name: agent.owner_name ?? "Unnamed owner",
       name_source: "self_declared",
@@ -320,6 +331,8 @@ function selfView(agent: AgentView, origin: string) {
 
 function limitsView(agent: AgentView) {
   return {
+    mandate_version: agent.mandate_version ?? 1,
+    mandate_issued_at: agent.mandate_issued_at ?? agent.created_at,
     permitted_actions: agent.permissions,
     monthly_spend_limit_usd: agent.monthly_spend_limit,
     owner_approval_required_above_usd: agent.approval_above,
@@ -464,16 +477,20 @@ export async function callTool(
         action: state.action,
         amount_usd: state.amountUsd,
         already_used: state.consumed,
+        mandate_version: state.mandateVersion ?? null,
+        current_mandate_version: state.currentMandateVersion ?? null,
         explanation:
-          state.status === "approved" && !state.consumed
-            ? "Approved. Call record_spend with this reference as approval_reference. It can only be used once."
-            : state.status === "approved" && state.consumed
-              ? "Approved, but already used for a spend. Request a new approval if you need to spend again."
-              : state.status === "pending"
-                ? "Still waiting on your owner. Do not proceed, and do not raise the request again."
-                : state.status === "denied"
-                  ? "Your owner denied this. Do not proceed, and do not ask again for the same thing."
-                  : "This request expired before your owner answered. Raise a new one if it is still needed.",
+          state.status === "superseded"
+            ? "This approval belongs to an older mandate version and cannot authorize anything. Request a new approval under the current mandate."
+            : state.status === "approved" && !state.consumed
+              ? "Approved. Call record_spend with this reference as approval_reference. It can only be used once."
+              : state.status === "approved" && state.consumed
+                ? "Approved, but already used for a spend. Request a new approval if you need to spend again."
+                : state.status === "pending"
+                  ? "Still waiting on your owner. Do not proceed, and do not raise the request again."
+                  : state.status === "denied"
+                    ? "Your owner denied this. Do not proceed, and do not ask again for the same thing."
+                    : "This request expired before your owner answered. Raise a new one if it is still needed.",
       });
     }
 
@@ -497,7 +514,7 @@ export async function callTool(
         credential,
         format: "vc+jwt",
         jwks_uri: `${ctx.issuerOrigin}/.well-known/jwks.json`,
-        status_endpoint: `${ctx.issuerOrigin}/api/public/status/${agent.public_id}`,
+        status_endpoint: `${ctx.issuerOrigin}/api/public/status/${agent.public_id}?mandate_version=${agent.mandate_version ?? 1}&revision=${encodeURIComponent(agent.credential_revision ?? `legacy-v${agent.mandate_version ?? 1}`)}`,
         ...(challenge
           ? {
               proof_of_possession: proof,
@@ -608,6 +625,7 @@ export async function callTool(
           identity_verified: agent.owner_verified,
         },
         permitted_actions: agent.permissions,
+        mandate_version: agent.mandate_version ?? 1,
         verify_url: `${ctx.issuerOrigin}/verify/${agent.public_id}`,
         explanation: usable
           ? `Infinity recognizes this agent under the owner-supplied account label ${agent.owner_name ?? "Unnamed owner"}. Only deal with it within the permitted actions listed, and require proof of possession in a live interaction.`

@@ -34,6 +34,9 @@ const AGENT: CredentialSource = {
   approval_above: 50,
   created_at: "2026-09-01T00:00:00.000Z",
   expires_at: "2027-03-01T00:00:00.000Z",
+  mandate_version: 3,
+  mandate_issued_at: "2026-09-15T00:00:00.000Z",
+  credential_revision: "revision-abc123",
 };
 
 const INSIDE_WINDOW = new Date("2026-10-01T00:00:00.000Z");
@@ -97,6 +100,8 @@ describe("credential payload", () => {
 
   test("carries the mandate", () => {
     const p = buildCredentialPayload(AGENT, ORIGIN);
+    expect(p.vc.credentialSubject.mandate.version).toBe(3);
+    expect(p.vc.credentialSubject.mandate.issuedAt).toBe(AGENT.mandate_issued_at!);
     expect(p.vc.credentialSubject.mandate.monthlySpendLimitUsd).toBe(200);
     expect(p.vc.credentialSubject.mandate.approvalAboveUsd).toBe(50);
     expect(p.vc.credentialSubject.mandate.permissions).toEqual(["Send email", "Book appointments"]);
@@ -119,6 +124,7 @@ describe("credential payload", () => {
         owner_attestation_method: "government_id_and_liveness",
         owner_attestation_assurance: "high",
         owner_attestation_verified_at: "2026-09-20T00:00:00.000Z",
+        owner_attestation_expires_at: "2027-09-20T00:00:00.000Z",
       },
       ORIGIN,
     );
@@ -127,6 +133,7 @@ describe("credential payload", () => {
     expect(att.method).toBe("government_id_and_liveness");
     expect(att.assurance).toBe("high");
     expect(att.verifiedAt).toBe("2026-09-20T00:00:00.000Z");
+    expect(att.expiresAt).toBe("2027-09-20T00:00:00.000Z");
     expect(p.vc.credentialSubject.owner.identityVerified).toBe(true);
   });
 
@@ -147,12 +154,40 @@ describe("credential payload", () => {
 
   test("points at a live status endpoint, since signatures cannot express revocation", () => {
     const p = buildCredentialPayload(AGENT, ORIGIN);
-    expect(p.vc.credentialStatus.id).toBe(`${ORIGIN}/api/public/status/${AGENT.public_id}`);
+    expect(p.vc.credentialStatus.id).toBe(
+      `${ORIGIN}/api/public/status/${AGENT.public_id}?mandate_version=3&revision=revision-abc123`,
+    );
+    expect(p.jti).toBe(`${ORIGIN}/credentials/${AGENT.public_id}/m3/revision-abc123`);
   });
 
-  test("validity window matches the agent's issued and expiry dates", () => {
+  test("verified owner evidence cannot outlive its own attestation", () => {
+    const p = buildCredentialPayload(
+      {
+        ...AGENT,
+        owner_attestation_issuer: "didit",
+        owner_attestation_method: "government_id_and_liveness",
+        owner_attestation_assurance: "high",
+        owner_attestation_verified_at: "2026-09-20T00:00:00.000Z",
+        owner_attestation_expires_at: "2026-12-20T00:00:00.000Z",
+      },
+      ORIGIN,
+    );
+    expect(p.exp).toBe(Math.floor(Date.parse("2026-12-20T00:00:00.000Z") / 1000));
+  });
+
+  test("a changed signed-claim revision creates a different credential identifier", () => {
+    const first = buildCredentialPayload(AGENT, ORIGIN);
+    const second = buildCredentialPayload(
+      { ...AGENT, credential_revision: "revision-def456" },
+      ORIGIN,
+    );
+    expect(first.jti).not.toBe(second.jti);
+    expect(first.vc.credentialStatus.id).not.toBe(second.vc.credentialStatus.id);
+  });
+
+  test("validity window matches the mandate issue and expiry dates", () => {
     const p = buildCredentialPayload(AGENT, ORIGIN);
-    expect(p.iat).toBe(Math.floor(Date.parse(AGENT.created_at) / 1000));
+    expect(p.iat).toBe(Math.floor(Date.parse(AGENT.mandate_issued_at!) / 1000));
     expect(p.exp).toBe(Math.floor(Date.parse(AGENT.expires_at) / 1000));
   });
 });

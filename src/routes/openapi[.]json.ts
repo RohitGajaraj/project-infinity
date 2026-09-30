@@ -105,10 +105,24 @@ function spec(origin: string) {
           summary: "Whether the agent is still live",
           description:
             "The one call you cannot skip. A signature cannot express a revocation that happened after it was signed, so only this endpoint can tell you the owner has hit the off switch. Never cached by us; cache it yourself for a few seconds if you want us off your hot path.",
-          parameters: [AGENT_ID_PARAM],
+          parameters: [
+            AGENT_ID_PARAM,
+            {
+              name: "mandate_version",
+              in: "query",
+              required: true,
+              schema: { type: "integer", minimum: 1 },
+            },
+            {
+              name: "revision",
+              in: "query",
+              required: true,
+              schema: { type: "string", minLength: 1 },
+            },
+          ],
           responses: {
             "200": {
-              description: "Current status.",
+              description: "Current agent status and exact credential supersession result.",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Status" } } },
             },
             "404": { description: "Unknown agent." },
@@ -211,6 +225,7 @@ function spec(origin: string) {
             },
             assurance: { type: "string", enum: ["none", "basic", "substantial", "high"] },
             verifiedAt: { type: ["string", "null"], format: "date-time" },
+            expiresAt: { type: ["string", "null"], format: "date-time" },
             operatorAsserted: { type: "boolean", const: true },
           },
           required: ["issuer", "method", "assurance", "operatorAsserted"],
@@ -256,6 +271,10 @@ function spec(origin: string) {
               type: "string",
               description: "The agent's Ed25519 key, as `ed25519:<base64>`.",
             },
+            mandate_version: { type: "integer", minimum: 1 },
+            mandate_issued_at: { type: "string", format: "date-time" },
+            credential_revision: { type: "string" },
+            agent_created_at: { type: "string", format: "date-time" },
             issued_at: { type: "string", format: "date-time" },
             expires_at: { type: "string", format: "date-time" },
             log_head: {
@@ -280,6 +299,8 @@ function spec(origin: string) {
             status: { type: "string" },
             jwks_uri: { type: "string", format: "uri" },
             status_endpoint: { type: "string", format: "uri" },
+            mandate_version: { type: "integer", minimum: 1 },
+            credential_revision: { type: "string" },
             key_mode: { type: "string", enum: ["explicit", "seed", "provisional", "insecure"] },
             provisional: {
               type: "boolean",
@@ -294,7 +315,19 @@ function spec(origin: string) {
           properties: {
             agent_id: { type: "string" },
             status: { type: "string", enum: ["valid", "frozen", "expired", "unknown"] },
-            usable: { type: "boolean", description: "The single field to branch on." },
+            agent_status: { type: "string", enum: ["valid", "frozen", "expired"] },
+            credential_status: {
+              type: "string",
+              enum: ["current", "superseded", "expired", "legacy"],
+            },
+            mandate_version: { type: ["integer", "null"] },
+            current_mandate_version: { type: "integer", minimum: 1 },
+            revision: { type: ["string", "null"] },
+            current_revision: { type: "string" },
+            usable: {
+              type: "boolean",
+              description: "True only for the exact current version/revision on a live agent.",
+            },
             expires_at: { type: "string", format: "date-time" },
             log_head: { type: ["string", "null"] },
             checked_at: { type: "string", format: "date-time" },

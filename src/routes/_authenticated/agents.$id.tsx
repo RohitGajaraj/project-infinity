@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsoleShell } from "@/components/ConsoleShell";
 import { AgentIdCard } from "@/components/AgentIdCard";
+import { MandateLifecycle } from "@/components/MandateLifecycle";
 import { fmtDate, formatLimits } from "@/lib/keys";
 
 export const Route = createFileRoute("/_authenticated/agents/$id")({
@@ -30,12 +31,15 @@ type ApprovalRow = {
   requested_at: string;
   expires_at: string;
   consumed_at: string | null;
+  mandate_version?: number | null;
 };
 
 function AgentDetail() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const [decideError, setDecideError] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const [toggling, setToggling] = useState(false);
   const agent = useQuery({
     queryKey: ["agent", id],
     queryFn: async () => {
@@ -85,7 +89,9 @@ function AgentDetail() {
       };
       const { data, error } = await client
         .from("approval_requests")
-        .select("id, action, amount_usd, status, reference, requested_at, expires_at, consumed_at")
+        .select(
+          "id, action, amount_usd, status, reference, requested_at, expires_at, consumed_at, mandate_version",
+        )
         .eq("agent_id", id)
         .order("requested_at", { ascending: false });
       if (error) throw new Error(error.message);
@@ -129,12 +135,34 @@ function AgentDetail() {
   }
 
   async function toggle() {
-    if (!agent.data) return;
+    if (!agent.data || toggling) return;
     const next = agent.data.status === "valid" ? "frozen" : "valid";
-    await supabase.from("agents").update({ status: next }).eq("id", id);
-    qc.invalidateQueries({ queryKey: ["agent", id] });
-    qc.invalidateQueries({ queryKey: ["events", id] });
-    qc.invalidateQueries({ queryKey: ["agents"] });
+    setToggling(true);
+    setToggleError(null);
+    try {
+      const client = supabase as unknown as {
+        rpc: (
+          name: string,
+          params: Record<string, unknown>,
+        ) => Promise<{ error: { message: string } | null }>;
+      };
+      const { error } = await client.rpc("set_agent_status", {
+        _agent_id: id,
+        _expected_status: agent.data.status,
+        _new_status: next,
+      });
+      if (error) throw new Error(error.message);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["agent", id] }),
+        qc.invalidateQueries({ queryKey: ["events", id] }),
+        qc.invalidateQueries({ queryKey: ["agents"] }),
+        qc.invalidateQueries({ queryKey: ["allowance", agent.data.public_id] }),
+      ]);
+    } catch (error) {
+      setToggleError(error instanceof Error ? error.message : "Status could not be changed.");
+    } finally {
+      setToggling(false);
+    }
   }
 
   if (agent.isLoading)
@@ -151,6 +179,19 @@ function AgentDetail() {
       </ConsoleShell>
     );
   const valid = a.status === "valid";
+  const mandateVersionValue = (a as typeof a & { current_mandate_version?: number })
+    .current_mandate_version;
+  if (!Number.isInteger(mandateVersionValue) || mandateVersionValue! < 1) {
+    return (
+      <ConsoleShell>
+        <p className="font-serif text-3xl">Mandate lifecycle is unavailable.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This agent is not safe to edit until the versioning migration is live.
+        </p>
+      </ConsoleShell>
+    );
+  }
+  const mandateVersion = mandateVersionValue as number;
 
   return (
     <ConsoleShell>
@@ -166,6 +207,7 @@ function AgentDetail() {
               source: a.source,
               owner: profile.data?.display_name ?? "You",
               status: valid ? "valid" : "frozen",
+              mandateVersion: mandateVersion,
               issued: fmtDate(a.created_at),
               expires: fmtDate(a.expires_at),
               limits: formatLimits(a),
@@ -192,13 +234,30 @@ function AgentDetail() {
                 ? "Freezing makes the live status endpoint refuse this agent on the next uncached check."
                 : "This agent is frozen. Businesses checking its ID are told not to trust it."}
             </p>
+            {toggleError && (
+              <p className="mt-3 text-sm text-seal" role="alert">
+                {toggleError}
+              </p>
+            )}
             <button
-              onClick={toggle}
-              className={`mt-5 w-full rounded-md py-3 text-sm font-medium ${valid ? "bg-seal text-primary-foreground" : "bg-primary text-primary-foreground"}`}
+              onClick={() => void toggle()}
+              disabled={toggling}
+              className={`mt-5 w-full rounded-md py-3 text-sm font-medium disabled:opacity-50 ${valid ? "bg-seal text-primary-foreground" : "bg-primary text-primary-foreground"}`}
             >
-              {valid ? "Freeze agent" : "Unfreeze agent"}
+              {toggling ? "Updating…" : valid ? "Freeze agent" : "Unfreeze agent"}
             </button>
           </div>
+
+          <MandateLifecycle
+            current={{
+              agentId: a.id,
+              version: mandateVersion,
+              permissions: a.permissions,
+              monthlySpendLimit: a.monthly_spend_limit,
+              approvalAbove: a.approval_above,
+              expiresAt: a.expires_at,
+            }}
+          />
 
           {allowance.data && (
             <div className="mt-8 rounded-xl border border-border p-6">
@@ -239,7 +298,10 @@ function AgentDetail() {
             <ol className="mt-5 border-t border-border">
               {approvals.data.map((r) => {
                 const expired = new Date(r.expires_at).getTime() <= Date.now();
-                const pending = r.status === "pending" && !expired;
+                const superseded =
+                  r.mandate_version === null ||
+                  (r.mandate_version !== undefined && r.mandate_version !== mandateVersion);
+                const pending = r.status === "pending" && !expired && !superseded;
                 return (
                   <li key={r.id} className="border-b border-border py-4">
                     <div className="flex items-start justify-between gap-4 text-sm">
@@ -249,11 +311,13 @@ function AgentDetail() {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {pending
-                        ? `Waiting on you — expires ${new Date(r.expires_at).toLocaleString()}`
-                        : r.status === "pending" && expired
-                          ? "Expired before you answered"
-                          : `${r.status[0]!.toUpperCase()}${r.status.slice(1)}${r.consumed_at ? " · already used" : ""}`}
+                      {superseded
+                        ? `Superseded with mandate v${mandateVersion}`
+                        : pending
+                          ? `Waiting on you — expires ${new Date(r.expires_at).toLocaleString()}`
+                          : r.status === "pending" && expired
+                            ? "Expired before you answered"
+                            : `${r.status[0]!.toUpperCase()}${r.status.slice(1)}${r.consumed_at ? " · already used" : ""}`}
                     </p>
                     {pending && (
                       <div className="mt-3 flex gap-2">

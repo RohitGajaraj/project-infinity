@@ -225,6 +225,7 @@ describe("record_spend — the tool that makes the mandate real", () => {
     remainingUsd: 200,
     approvalAboveUsd: 50,
     periodStart: "2026-09-01T00:00:00.000Z",
+    mandateVersion: 1,
   };
 
   function spendCtx(overrides: Partial<McpContext> = {}) {
@@ -464,6 +465,7 @@ describe("get_limits reports the balance, not just the grant", () => {
             remainingUsd: 170,
             approvalAboveUsd: 50,
             periodStart: "2026-09-01T00:00:00.000Z",
+            mandateVersion: 1,
           }),
         }),
       ),

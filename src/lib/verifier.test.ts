@@ -48,7 +48,10 @@ async function scenario(overrides: Partial<CredentialSource> = {}) {
 }
 
 /** Stand-in for Infinity's public endpoints, so tests never touch the network. */
-function fakeFetch(jwks: unknown, status: { status: string; usable: boolean }) {
+function fakeFetch(
+  jwks: unknown,
+  status: { status: string; usable: boolean; credential_status?: string },
+) {
   const calls = { jwks: 0, status: 0 };
   const impl = (async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -251,6 +254,26 @@ describe("the full handshake a business runs", () => {
     if (result.trusted) return;
     expect(result.reason).toBe("not_live");
     expect(result.detail).toBe("frozen");
+  });
+
+  test("a superseded credential reports the credential-level reason", async () => {
+    const s = await scenario();
+    const { impl } = fakeFetch(s.jwks, {
+      status: "valid",
+      usable: false,
+      credential_status: "superseded",
+    });
+    const verifier = createVerifier({ issuer: ISSUER, fetchImpl: impl });
+    const nonce = verifier.challenge();
+    const signature = await signProof(s.agentKeys.privateKey, {
+      nonce,
+      method: REQ.method,
+      url: REQ.url,
+      bodySha256: await import("./jws").then((m) => m.sha256Hex(REQ.body)),
+    });
+
+    const result = await verifier.verify({ credential: s.credential, signature, nonce, ...REQ });
+    expect(result).toEqual({ trusted: false, reason: "not_live", detail: "superseded" });
   });
 
   test("a credential from another issuer is rejected", async () => {

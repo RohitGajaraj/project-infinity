@@ -110,10 +110,11 @@ is refused.
 Free, no account, no key, no rate limit. Four questions, and only the last needs us.
 
 \`\`\`
-GET ${origin}/api/public/credential/{agent_id}   # the signed credential
-GET ${origin}/.well-known/jwks.json              # the keys that signed it
-GET ${origin}/api/public/status/{agent_id}       # is it still live
-GET ${origin}/api/public/verify/{agent_id}       # everything, as plain JSON
+GET ${origin}/api/public/credential/{agent_id}   # signed current credential
+GET ${origin}/.well-known/jwks.json              # keys that signed it
+# For live status, call vc.credentialStatus.id from the verified credential.
+# Never construct an agent-only status URL: version and revision prevent replay.
+GET ${origin}/api/public/verify/{agent_id}       # current summary, as plain JSON
 \`\`\`
 
 1. **Did Infinity issue this mandate?** Verify the credential's EdDSA signature
@@ -123,8 +124,10 @@ GET ${origin}/api/public/verify/{agent_id}       # everything, as plain JSON
    \`INFINITY-POP-v1\\n<nonce>\\n<METHOD>\\n<url>\\n<sha256-hex-of-body>\` with its own
    Ed25519 key. Verify against \`credentialSubject.publicKey\` **from inside the
    verified credential** — never a key the agent hands you separately.
-4. **Has the owner switched it off since?** The only call you cannot skip, because
-   no signature can express a revocation that happened after it was signed.
+4. **Has the owner switched it off or superseded this mandate?** Call the exact
+   \`vc.credentialStatus.id\` from the verified credential. This is a point-in-time
+   answer, not a lock: recheck immediately before a sensitive external action, or
+   use an atomic Infinity enforcement path such as \`record_spend\`.
 
 A human-readable page for any agent: ${origin}/verify/{agent_id}
 

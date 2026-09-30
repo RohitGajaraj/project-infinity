@@ -19,12 +19,12 @@ import {
   issuerOrigin,
   verifyMcpChallenge,
 } from "./issuer.server";
-import { lookupAgent } from "./verify.server";
+import { lookupAgent, mandateLifecycle } from "./verify.server";
 import type { AgentView, McpContext } from "./mcp";
 
 export type AuthOutcome =
   | { ok: true; agentPublicId: string }
-  | { ok: false; status: 401 | 403; error: string; description: string };
+  | { ok: false; status: 401 | 403 | 503; error: string; description: string };
 
 /**
  * Resolve the calling agent from the Authorization header.
@@ -59,6 +59,15 @@ export async function authenticateAgent(request: Request): Promise<AuthOutcome> 
       description: "That Agent ID was not issued by Infinity.",
     };
   }
+  const lifecycle = mandateLifecycle(agent);
+  if (!lifecycle) {
+    return {
+      ok: false,
+      status: 503,
+      error: "mandate_lifecycle_unavailable",
+      description: "Mandate versioning is unavailable. Do not rely on this agent yet.",
+    };
+  }
   if (agent.status !== "valid") {
     return {
       ok: false,
@@ -88,6 +97,8 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
     loadAgent: async (publicId: string): Promise<AgentView | null> => {
       const agent = await lookupAgent(publicId);
       if (!agent) return null;
+      const lifecycle = mandateLifecycle(agent);
+      if (!lifecycle) throw new Error("mandate_lifecycle_unavailable");
       return {
         public_id: agent.public_id,
         name: agent.name,
@@ -100,11 +111,15 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
         approval_above: agent.approval_above,
         created_at: agent.created_at,
         expires_at: agent.expires_at,
+        mandate_version: lifecycle.version,
+        mandate_issued_at: lifecycle.issuedAt,
+        credential_revision: lifecycle.revision,
       };
     },
     issueCredential: async (publicId: string) => {
       const agent = await lookupAgent(publicId);
       if (!agent) throw new Error("unknown_agent");
+      if (!mandateLifecycle(agent)) throw new Error("mandate_lifecycle_unavailable");
       return issueAgentCredential(agent, origin);
     },
 
@@ -142,6 +157,8 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
         amountUsd: state.amountUsd,
         action: state.action,
         consumed: state.consumed,
+        mandateVersion: state.mandateVersion,
+        currentMandateVersion: state.currentMandateVersion,
       };
     },
 
