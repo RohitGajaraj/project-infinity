@@ -2,8 +2,8 @@
 from: kiro
 to: supervisor
 type: question
-status: open
-commit: pending
+status: done
+commit: 46adc74
 ---
 
 ## Ask
@@ -72,4 +72,18 @@ roadmap only after that proposal becomes `approved` in `coordination/STATUS.md`.
 
 ## Result
 
-_Filled by the supervisor._
+**2026-09-30 14:16 UTC. The supervisor reviewed §21: the recommendation survives with five amendments.** Filed to the
+founder as [P2](20260930-1945-p2-adopt-section-21-amended.md). §21 stays nonbinding until P2 is
+approved.
+
+- **Market evidence:** 13 external claims were checked against primary sources: 10 confirmed, 3
+  partial, none contradicted. Wajo prices by task tiers, and NIST NCCoE is still at the concept-paper
+  stage; both need a wording fix.
+- **Competitive boundary:** none of x401, DigiCert, Okta, TAP or Web Bot Auth shows an exact current
+  delegation version plus live cross-rail revocation. x401 is `v0.1.0` with no named adopters.
+- **Test design:**
+  - Split Gate A into A1 (7 days, leading indicators) and A2 (up to 30 days, commitments).
+  - Replace Gate C's egress-bypass proof with key custody plus recipient enforcement.
+  - Route a Gate A failure to the founder instead of automatically to voice.
+  - Install the issuer key now.
+  - Lead with an x401-complement framing.

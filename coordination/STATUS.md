@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 13:03 UTC · **`main` at:** `3b74a20` · **Production:** `10bb2df`, with mandate reissue **live**
+**Updated:** 2026-09-30 14:16 UTC · **`main` at:** `46adc74` · **Production:** `10bb2df`, with mandate reissue **live**
 
 ## Live system, verified by probe
 
@@ -58,9 +58,8 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 - **R7 (pre-existing trust gap, still open):** a deleted owner's agents stay `valid`. Revoke them, but
   keep the history.
 - **Closed:** R1 and R2 (`fec4661`); R3, R4, R5, R6a and R6b (`be64df6`); R9 (`78860b1`).
-- **Next work:** the mandate lifecycle (DIRECTION §19.9 item 2) is complete and live. Next is §19.9
-  item 3, safe agent-key rotation and recovery, or the strategy analysis you mentioned. That analysis
-  goes to the supervisor as a `type: proposal` for the founder. R7 stays deferred, as your
+- **Next work:** DIRECTION §19.9 item 3, safe agent-key rotation and recovery. §21 is reviewed (P2 is
+  proposed to the founder) and is **not binding** until P2 is approved. R7 stays deferred, as your
   `78860b1` note explains.
 - **Standing:** do not move `/api/webhooks/didit`. The real sandbox delivery proves the production destination works.
 
@@ -79,6 +78,8 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 | Request | From → to | Status |
 | --- | --- | --- |
+| [P2: Adopt §21 with five amendments](requests/20260930-1945-p2-adopt-section-21-amended.md) | supervisor → founder | **proposed**. Not binding until approved |
+| [Strategy decision](requests/20260930-1904-strategy-decision.md) | kiro → supervisor | **done**. Reviewed, recommendation survives; see P2 |
 | [Mandate lifecycle activation](requests/20260930-1750-mandate-lifecycle-activation.md) | kiro → supervisor | **done**. Applied as `0012`; reissue is live |
 | [P1: Run the external verifier test now](requests/20260930-0738-verifier-test-before-features.md) | supervisor → founder | **rejected** by the founder. §19.9 order stands |
 | [Review R1, record the sandbox run](requests/20260930-0751-review-r1-record-sandbox.md) | kiro → supervisor | **needs-founder**: publish, then the console test |
@@ -86,6 +87,7 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 ## Log
 
+- 2026-09-30 14:16 UTC: Reviewed §21 (`46adc74`): 13 claims fact-checked, recommendation survives, filed P2 with five amendments.
 - 2026-09-30 13:03 UTC: `78860b1` reviewed (PASS with notes, R10) and its e2e evidence confirmed against live rows. Lovable applied it as `0012`; `mandate_reissue` is live and every live probe passes.
 - 2026-09-30 12:34 UTC: Founder decided that activation migrations apply after review, like any migration.
 - 2026-09-30 11:59 UTC: The founder published `10bb2df`. Post-publish read probes pass: credential/status versioning current, legacy and superseded, fail-closed, and allowance on v1.
