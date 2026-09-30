@@ -37,6 +37,8 @@ export type AgentCredentialSubject = {
     continuityProven: boolean;
     /** True only when the new key signed the transition material. */
     possessionProven: boolean;
+    /** Recovery keys remain unusable until fresh post-recovery possession is observed. */
+    recoveryHold: boolean;
   };
   owner: {
     /** Account-controlled display label. It is not extracted from identity evidence. */
@@ -112,10 +114,11 @@ export type CredentialSource = {
   key_version?: number;
   key_activated_at?: string;
   key_fingerprint?: string;
-  key_authorization_method?: "initial" | "legacy_import" | "old_key_proof" | "owner_recovery";
+  key_authorization_method?: string;
   key_continuity_proven?: boolean;
   key_possession_proven?: boolean;
   credential_state_issued_at?: string;
+  key_recovery_hold_version?: number | null;
 };
 
 function toSeconds(iso: string): number {
@@ -136,7 +139,11 @@ export function buildCredentialPayload(
   const keyVersion = agent.key_version ?? 1;
   const keyActivatedAt = agent.key_activated_at ?? agent.created_at;
   const keyFingerprint = agent.key_fingerprint ?? "0".repeat(64);
-  const keyAuthorizationMethod = agent.key_authorization_method ?? "legacy_import";
+  const keyAuthorizationMethod = ["initial", "legacy_import", "old_key_proof", "owner_recovery"].includes(
+    agent.key_authorization_method ?? "",
+  )
+    ? (agent.key_authorization_method as AgentCredentialSubject["key"]["authorizationMethod"])
+    : "legacy_import";
   const stateIssuedAt = agent.credential_state_issued_at ?? mandateIssuedAt;
   const revision = agent.credential_revision ?? `legacy-m${version}-k${keyVersion}`;
   const iat = toSeconds(stateIssuedAt);
@@ -160,6 +167,9 @@ export function buildCredentialPayload(
       authorizationMethod: keyAuthorizationMethod,
       continuityProven: agent.key_continuity_proven === true,
       possessionProven: agent.key_possession_proven === true,
+      recoveryHold:
+        Number.isInteger(agent.key_recovery_hold_version) &&
+        agent.key_recovery_hold_version === keyVersion,
     },
     owner: {
       name: agent.owner_name ?? "Unnamed owner",

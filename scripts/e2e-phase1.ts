@@ -14,7 +14,8 @@
  */
 
 import { verifyAgentCredential } from "../src/lib/credential";
-import { b64uDecode, b64uEncode, parseStoredPublicKey } from "../src/lib/jws";
+import { agentKeyFingerprint } from "../src/lib/key-lifecycle";
+import { b64uDecode, b64uEncode, parseStoredPublicKey, sha256Hex } from "../src/lib/jws";
 import { bodyHash, createChallenge, signProof, verifyProof } from "../src/lib/pop";
 
 const SUPABASE_URL = process.env["SUPABASE_URL"];
@@ -133,7 +134,9 @@ check(
   "mandate is exposed",
   verify.monthly_spend_limit_usd === 200 &&
     verify.approval_above_usd === 50 &&
-    verify.mandate_version === 1,
+    verify.mandate_version === 1 &&
+    verify.key_version === 1 &&
+    /^[0-9a-f]{64}$/.test(verify.key_fingerprint),
 );
 
 // ---------------------------------------------------------------- 5. offline
@@ -147,6 +150,12 @@ check("signature valid", good.valid, good.valid ? "" : (good as { reason: string
 if (good.valid) {
   check("subject is this agent", good.subject.id === agentId);
   check("agent's own key is inside the credential", good.subject.publicKey === storedPub);
+  check(
+    "credential binds independent key v1 lifecycle",
+    good.subject.key.version === 1 &&
+      good.subject.key.fingerprint === verify.key_fingerprint &&
+      good.statusUrl.includes("key_version=1"),
+  );
   check("mandate is inside the signed payload", good.subject.mandate.monthlySpendLimitUsd === 200);
   check("credential names a live status endpoint", good.statusUrl.includes(`/status/${agentId}`));
 }
@@ -488,10 +497,13 @@ const directReissue = await fetch(`${SUPABASE_URL}/rest/v1/rpc/reissue_agent_man
 check("authenticated clients cannot call service-only reissue", directReissue.status >= 400);
 
 const usageRows = (await fetch(
-  `${SUPABASE_URL}/rest/v1/agent_usage?agent_id=eq.${rows[0]!.id}&select=mandate_version`,
+  `${SUPABASE_URL}/rest/v1/agent_usage?agent_id=eq.${rows[0]!.id}&select=mandate_version,key_version`,
   { headers: authed },
-).then((r) => r.json())) as Array<{ mandate_version: number }>;
-check("usage records the authorizing mandate version", usageRows[0]?.mandate_version === 1);
+).then((r) => r.json())) as Array<{ mandate_version: number; key_version: number }>;
+check(
+  "usage records both authorizing versions",
+  usageRows[0]?.mandate_version === 1 && usageRows[0]?.key_version === 1,
+);
 
 const directMandateWrite = await fetch(`${SUPABASE_URL}/rest/v1/agents?id=eq.${rows[0]!.id}`, {
   method: "PATCH",
@@ -507,6 +519,68 @@ check(
   "owner sees immutable mandate v1 history",
   mandateHistory.map((row) => row.version).join(",") === "1",
 );
+
+const keyHistory = (await fetch(
+  `${SUPABASE_URL}/rest/v1/agent_key_versions?agent_id=eq.${rows[0]!.id}&select=version,fingerprint,authorization_method&order=version.asc`,
+  { headers: authed },
+).then((r) => r.json())) as Array<{
+  version: number;
+  fingerprint: string;
+  authorization_method: string;
+}>;
+check(
+  "owner sees immutable key v1 history",
+  keyHistory.length === 1 &&
+    keyHistory[0]?.version === 1 &&
+    keyHistory[0]?.fingerprint === verify.key_fingerprint,
+);
+const mutateKeyHistory = await fetch(
+  `${SUPABASE_URL}/rest/v1/agent_key_versions?agent_id=eq.${rows[0]!.id}&version=eq.1`,
+  {
+    method: "PATCH",
+    headers: authed,
+    body: JSON.stringify({ change_reason: "forged history" }),
+  },
+);
+check("owner cannot mutate immutable key history", mutateKeyHistory.status >= 400);
+
+const nextPair = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, [
+  "sign",
+  "verify",
+])) as CryptoKeyPair;
+const nextRaw = new Uint8Array(await crypto.subtle.exportKey("raw", nextPair.publicKey));
+const nextStored = `ed25519:${btoa(String.fromCharCode(...nextRaw))}`;
+const nextFingerprint = await agentKeyFingerprint(nextStored);
+const directKeyMaterial = "direct authenticated key change must remain unavailable";
+const directKeyChange = await fetch(`${SUPABASE_URL}/rest/v1/rpc/change_agent_key`, {
+  method: "POST",
+  headers: authed,
+  body: JSON.stringify({
+    _owner_id: signup.user?.id,
+    _agent_id: rows[0]!.id,
+    _expected_version: 1,
+    _expected_fingerprint: verify.key_fingerprint,
+    _new_public_key: nextStored,
+    _new_fingerprint: nextFingerprint,
+    _request_id: crypto.randomUUID(),
+    _mode: "rotate",
+    _disposition: "routine",
+    _change_reason: "Direct call must remain unavailable",
+    _proof_expires_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+    _old_signature: "A".repeat(86),
+    _new_signature: "B".repeat(86),
+    _signed_material: directKeyMaterial,
+    _signed_material_sha256: await sha256Hex(directKeyMaterial),
+    _recent_auth_at: null,
+  }),
+});
+const directKeyBody = await directKeyChange.text();
+check(
+  "authenticated clients cannot call service-only key changes",
+  directKeyChange.status >= 400 && !directKeyBody.includes("agent_key_rotation_not_enabled"),
+  `HTTP ${directKeyChange.status}`,
+);
+
 const mutateHistory = await fetch(
   `${SUPABASE_URL}/rest/v1/agent_mandate_versions?agent_id=eq.${rows[0]!.id}&version=eq.1`,
   {
@@ -532,6 +606,8 @@ for (const table of [
   "agents",
   "profiles",
   "agent_events",
+  "agent_key_versions",
+  "agent_key_change_requests",
   "owner_attestations",
   "owner_identity_sessions",
   "owner_identity_events",

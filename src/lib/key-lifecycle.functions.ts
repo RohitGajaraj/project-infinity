@@ -6,7 +6,6 @@ import {
   agentKeyFingerprint,
   canonicalKeyChangeMaterial,
   keyChangeMaterialHash,
-  keyChangeProofIsFresh,
   keyChangeProofParts,
   recentStrongAuthAt,
   verifyKeyChangeProof,
@@ -34,6 +33,17 @@ const ChangeKeyInput = z
   .strict();
 
 const HistoryInput = z.object({ agentId: z.string().uuid() }).strict();
+
+const RecoveryConfirmationInput = z
+  .object({
+    publicId: z.string().trim().min(1).max(64),
+    nonce: z.string().trim().min(16).max(1024),
+    signature: z.string().regex(SIGNATURE),
+    method: z.string().trim().min(1).max(16),
+    url: z.string().url().max(500),
+    body: z.string().max(10_000).optional(),
+  })
+  .strict();
 
 type OwnedAgent = {
   id: string;
@@ -73,6 +83,12 @@ type ListQuery<T> = {
 type OwnerDatabase = {
   from(table: string): {
     select(columns: string): SingleQuery<OwnedAgent> & ListQuery<KeyVersionRow>;
+  };
+};
+
+type OwnerListDatabase = {
+  from(table: string): {
+    select(columns: string): ListQuery<KeyVersionRow>;
   };
 };
 
@@ -124,9 +140,6 @@ export const changeAgentKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<ChangeAgentKeyResult> => {
     const now = Date.now();
-    if (!keyChangeProofIsFresh(data.proofExpiresAt, now)) {
-      return { ok: false, reason: "key_change_proof_expired" };
-    }
     if (
       (data.mode === "rotate" && data.disposition !== "routine") ||
       (data.mode === "recover" && !["lost", "compromised"].includes(data.disposition))
@@ -251,6 +264,62 @@ export const changeAgentKey = createServerFn({ method: "POST" })
     };
   });
 
+export type ConfirmRecoveredKeyResult =
+  | { ok: true; eventId: number; hash: string; keyVersion: number }
+  | { ok: false; reason: string };
+
+/** Fresh current-key proof clears a recovery hold but never unfreezes the agent. */
+export const confirmRecoveredAgentKey = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => RecoveryConfirmationInput.parse(input))
+  .handler(async ({ data }): Promise<ConfirmRecoveredKeyResult> => {
+    const { verifyMcpChallenge } = await import("./issuer.server");
+    if (!(await verifyMcpChallenge(data.nonce, data.publicId))) {
+      return { ok: false, reason: "challenge_invalid_or_replayed" };
+    }
+
+    const { keyLifecycle, lookupAgent } = await import("./verify.server");
+    const { bodyHash, canonicalProofString, verifyProof } = await import("./pop");
+    const { sha256Hex } = await import("./jws");
+    const agent = await lookupAgent(data.publicId);
+    if (!agent) return { ok: false, reason: "unknown_agent" };
+    const key = keyLifecycle(agent);
+    if (!key) return { ok: false, reason: "agent_key_lifecycle_unavailable" };
+    if (agent.status !== "frozen" || key.recoveryHoldVersion !== key.version) {
+      return { ok: false, reason: "recovery_hold_not_current" };
+    }
+
+    const proofParts = {
+      nonce: data.nonce,
+      method: data.method,
+      url: data.url,
+      bodySha256: await bodyHash(data.body),
+    };
+    const proof = await verifyProof(agent.public_key, data.signature, proofParts);
+    if (!proof.ok) return { ok: false, reason: "bad_signature" };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as {
+      rpc(
+        name: string,
+        params: Record<string, unknown>,
+      ): Promise<{
+        data: Array<{ event_id: number; hash: string; key_version: number }> | null;
+        error: { message: string } | null;
+      }>;
+    };
+    const response = await admin.rpc("record_recovery_key_confirmation", {
+      _public_id: data.publicId,
+      _nonce: data.nonce,
+      _signature: data.signature,
+      _expected_key_version: key.version,
+      _signed_material_sha256: await sha256Hex(canonicalProofString(proofParts)),
+    });
+    if (response.error) return { ok: false, reason: response.error.message };
+    const row = response.data?.[0];
+    if (!row) return { ok: false, reason: "recovery_confirmation_missing" };
+    return { ok: true, eventId: row.event_id, hash: row.hash, keyVersion: row.key_version };
+  });
+
 export const getAgentKeyHistory = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => HistoryInput.parse(input))
   .middleware([requireSupabaseAuth])
@@ -258,7 +327,8 @@ export const getAgentKeyHistory = createServerFn({ method: "GET" })
     const database = context.supabase as unknown as OwnerDatabase;
     const agent = await loadOwnedAgent(database, context.userId, data.agentId);
     if (!agent) return [];
-    const { data: rows, error } = await database
+    const listDatabase = context.supabase as unknown as OwnerListDatabase;
+    const { data: rows, error } = await listDatabase
       .from("agent_key_versions")
       .select(
         "agent_id,version,public_key,fingerprint,activated_at,authorization_method,continuity_proven,possession_proven,predecessor_version,predecessor_disposition,change_reason",

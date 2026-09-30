@@ -69,6 +69,14 @@ export async function authenticateAgent(request: Request): Promise<AuthOutcome> 
       description: "Versioned authority is unavailable. Do not rely on this agent yet.",
     };
   }
+  if (key.recoveryHoldVersion === key.version) {
+    return {
+      ok: false,
+      status: 403,
+      error: "recovery_key_confirmation_required",
+      description: "The recovered key must prove fresh possession before the owner can unfreeze it.",
+    };
+  }
   if (agent.status !== "valid") {
     return {
       ok: false,
@@ -173,6 +181,8 @@ export function buildContext(
         consumed: state.consumed,
         mandateVersion: state.mandateVersion,
         currentMandateVersion: state.currentMandateVersion,
+        keyVersion: state.keyVersion,
+        currentKeyVersion: state.currentKeyVersion,
       };
     },
 

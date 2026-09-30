@@ -76,6 +76,7 @@ export const Route = createFileRoute("/api/public/credential/$agentId")({
             key_version: key.version,
             key_fingerprint: key.fingerprint,
             key_authorization_method: key.authorizationMethod,
+            key_recovery_hold: key.recoveryHoldVersion === key.version,
             credential_revision: lifecycle.revision,
             jwks_uri: `${origin}/.well-known/jwks.json`,
             status_endpoint: `${origin}/api/public/status/${agent.public_id}?mandate_version=${lifecycle.version}&key_version=${key.version}&revision=${encodeURIComponent(lifecycle.revision)}`,

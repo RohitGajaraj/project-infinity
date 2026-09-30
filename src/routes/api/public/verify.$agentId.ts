@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
           JSON.stringify({
             agent_id: a.public_id,
             status,
-            usable: status === "valid",
+            usable: status === "valid" && key.recoveryHoldVersion !== key.version,
             name: a.name,
             source: a.source,
             owner: {
@@ -57,6 +57,7 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
             key_authorization_method: key.authorizationMethod,
             key_continuity_proven: key.continuityProven,
             key_possession_proven: key.possessionProven,
+            key_recovery_hold: key.recoveryHoldVersion === key.version,
             mandate_version: lifecycle.version,
             mandate_issued_at: lifecycle.issuedAt,
             credential_revision: lifecycle.revision,

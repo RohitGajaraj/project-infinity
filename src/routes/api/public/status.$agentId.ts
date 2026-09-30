@@ -58,6 +58,7 @@ export const Route = createFileRoute("/api/public/status/$agentId")({
           currentKeyVersion,
           currentRevision,
           agentStatus: agent.status,
+          recoveryHold: key.recoveryHoldVersion === key.version,
           expiresAt: agent.expires_at,
         });
 
@@ -72,6 +73,7 @@ export const Route = createFileRoute("/api/public/status/$agentId")({
             key_version: requestedKeyVersion,
             current_key_version: currentKeyVersion,
             current_key_fingerprint: key.fingerprint,
+            recovery_hold: key.recoveryHoldVersion === key.version,
             revision,
             current_revision: currentRevision,
             usable: classified.usable,

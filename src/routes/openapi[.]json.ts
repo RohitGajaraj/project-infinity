@@ -114,6 +114,14 @@ function spec(origin: string) {
               schema: { type: "integer", minimum: 1 },
             },
             {
+              name: "key_version",
+              in: "query",
+              required: false,
+              description:
+                "Required on newly issued credentials. Omitted key version is accepted only for a matching legacy key-v1 credential and becomes superseded after rotation.",
+              schema: { type: "integer", minimum: 1 },
+            },
+            {
               name: "revision",
               in: "query",
               required: true,
@@ -269,8 +277,18 @@ function spec(origin: string) {
             },
             public_key: {
               type: "string",
-              description: "The agent's Ed25519 key, as `ed25519:<base64>`.",
+              description: "The current agent Ed25519 key, as `ed25519:<base64>`.",
             },
+            key_version: { type: "integer", minimum: 1 },
+            key_activated_at: { type: "string", format: "date-time" },
+            key_fingerprint: { type: "string", pattern: "^[0-9a-f]{64}$" },
+            key_authorization_method: {
+              type: "string",
+              enum: ["initial", "legacy_import", "old_key_proof", "owner_recovery"],
+            },
+            key_continuity_proven: { type: "boolean" },
+            key_possession_proven: { type: "boolean" },
+            key_recovery_hold: { type: "boolean" },
             mandate_version: { type: "integer", minimum: 1 },
             mandate_issued_at: { type: "string", format: "date-time" },
             credential_revision: { type: "string" },
@@ -300,6 +318,10 @@ function spec(origin: string) {
             jwks_uri: { type: "string", format: "uri" },
             status_endpoint: { type: "string", format: "uri" },
             mandate_version: { type: "integer", minimum: 1 },
+            key_version: { type: "integer", minimum: 1 },
+            key_fingerprint: { type: "string", pattern: "^[0-9a-f]{64}$" },
+            key_authorization_method: { type: "string" },
+            key_recovery_hold: { type: "boolean" },
             credential_revision: { type: "string" },
             key_mode: { type: "string", enum: ["explicit", "seed", "provisional", "insecure"] },
             provisional: {
@@ -322,11 +344,16 @@ function spec(origin: string) {
             },
             mandate_version: { type: ["integer", "null"] },
             current_mandate_version: { type: "integer", minimum: 1 },
+            key_version: { type: ["integer", "null"] },
+            current_key_version: { type: "integer", minimum: 1 },
+            current_key_fingerprint: { type: "string", pattern: "^[0-9a-f]{64}$" },
+            recovery_hold: { type: "boolean" },
             revision: { type: ["string", "null"] },
             current_revision: { type: "string" },
             usable: {
               type: "boolean",
-              description: "True only for the exact current version/revision on a live agent.",
+              description:
+                "True only for the exact current mandate/key/revision on a live agent with no recovery hold.",
             },
             expires_at: { type: "string", format: "date-time" },
             log_head: { type: ["string", "null"] },

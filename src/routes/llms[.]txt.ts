@@ -113,7 +113,7 @@ Free, no account, no key, no rate limit. Four questions, and only the last needs
 GET ${origin}/api/public/credential/{agent_id}   # signed current credential
 GET ${origin}/.well-known/jwks.json              # keys that signed it
 # For live status, call vc.credentialStatus.id from the verified credential.
-# Never construct an agent-only status URL: version and revision prevent replay.
+# Never construct an agent-only status URL: mandate version, key version and revision prevent replay.
 GET ${origin}/api/public/verify/{agent_id}       # current summary, as plain JSON
 \`\`\`
 
@@ -124,7 +124,7 @@ GET ${origin}/api/public/verify/{agent_id}       # current summary, as plain JSO
    \`INFINITY-POP-v1\\n<nonce>\\n<METHOD>\\n<url>\\n<sha256-hex-of-body>\` with its own
    Ed25519 key. Verify against \`credentialSubject.publicKey\` **from inside the
    verified credential** — never a key the agent hands you separately.
-4. **Has the owner switched it off or superseded this mandate?** Call the exact
+4. **Has the owner switched it off or superseded this mandate/key?** Call the exact
    \`vc.credentialStatus.id\` from the verified credential. This is a point-in-time
    answer, not a lock: recheck immediately before a sensitive external action, or
    use an atomic Infinity enforcement path such as \`record_spend\`.
@@ -151,9 +151,12 @@ Anyone can forge sandbox credentials. They prove your code works and nothing els
 
 Format is \`vc+jwt\`: a W3C-Verifiable-Credential payload in a compact JWS, EdDSA.
 
-Independently checkable: the issuer, the agent's ID and signing key, the mandate
-(permitted actions, monthly spend cap, the amount above which the owner must
-approve), and the validity window.
+Independently checkable: the issuer, the agent's ID and current signing key, the
+key version and transition evidence, the mandate (permitted actions, monthly spend
+cap, the amount above which the owner must approve), and the validity window. A
+routine rotation says the prior key signed the transition. Owner recovery explicitly
+says continuity was not proven and stays behind a recovery hold until the new key
+answers a fresh challenge. Neither claim proves which named workload holds the key.
 
 **Not independently checkable:** \`owner.attestation\`. It names who checked the
 owner's identity, by what method, at what assurance level and when — but it is

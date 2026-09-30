@@ -45,6 +45,22 @@ async function adminRpc<N extends FnName>(
   return first<N>(await supabaseAdmin.rpc(name, params as never));
 }
 
+async function adminRpcUntyped<R>(
+  name: string,
+  params: Record<string, unknown>,
+): Promise<R | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const client = supabaseAdmin as unknown as {
+    rpc(
+      functionName: string,
+      args: Record<string, unknown>,
+    ): Promise<{ data: R[] | null; error: { message: string } | null }>;
+  };
+  const response = await client.rpc(name, params);
+  if (response.error) throw new Error(response.error.message);
+  return response.data?.[0] ?? null;
+}
+
 // --------------------------------------------------------------- allowance
 
 type AllowanceRow = {
@@ -104,13 +120,15 @@ export async function reserveSpend(input: {
   amountUsd: number;
   detail: string;
   reference: string;
+  expectedKeyVersion: number;
   approvalReference?: string;
 }): Promise<SpendOutcome> {
-  const row = await adminRpc("reserve_spend", {
+  const row = await adminRpcUntyped<SpendRow>("reserve_spend_v2", {
     _public_id: input.publicId,
     _amount_usd: input.amountUsd,
     _detail: input.detail,
     _reference: input.reference,
+    _expected_key_version: input.expectedKeyVersion,
     ...(input.approvalReference ? { _approval_reference: input.approvalReference } : {}),
   });
 
@@ -133,11 +151,13 @@ export async function createApprovalRequest(input: {
   publicId: string;
   action: string;
   amountUsd?: number;
+  expectedKeyVersion: number;
 }): Promise<ApprovalHandle> {
-  const row = await adminRpc("create_approval_request", {
+  const row = await adminRpcUntyped<ApprovalRow>("create_approval_request_v2", {
     _public_id: input.publicId,
     _action: input.action,
     _amount_usd: input.amountUsd ?? 0,
+    _expected_key_version: input.expectedKeyVersion,
   });
   if (!row) throw new Error("approval_request_failed");
   return { reference: row.reference, status: row.status, expiresAt: row.expires_at };
@@ -151,6 +171,8 @@ export type ApprovalState = {
   consumed: boolean;
   mandateVersion: number | null;
   currentMandateVersion: number;
+  keyVersion: number | null;
+  currentKeyVersion: number;
 };
 
 type ApprovalStateRow = {
@@ -161,19 +183,21 @@ type ApprovalStateRow = {
   consumed: boolean;
   mandate_version?: number | null;
   current_mandate_version?: number;
+  key_version?: number | null;
+  current_key_version?: number;
 };
 
 export async function getApprovalState(
   publicId: string,
   reference: string,
 ): Promise<ApprovalState | null> {
-  const row = (await adminRpc("approval_state", {
+  const row = await adminRpcUntyped<ApprovalStateRow>("approval_state_v2", {
     _public_id: publicId,
     _reference: reference,
-  })) as unknown as ApprovalStateRow | null;
+  });
   if (!row) return null;
-  if (!Number.isInteger(row.current_mandate_version)) {
-    throw new Error("mandate_lifecycle_unavailable");
+  if (!Number.isInteger(row.current_mandate_version) || !Number.isInteger(row.current_key_version)) {
+    throw new Error("agent_authority_lifecycle_unavailable");
   }
   return {
     status: row.status as ApprovalState["status"],
@@ -183,5 +207,7 @@ export async function getApprovalState(
     consumed: row.consumed === true,
     mandateVersion: row.mandate_version ?? null,
     currentMandateVersion: row.current_mandate_version!,
+    keyVersion: row.key_version ?? null,
+    currentKeyVersion: row.current_key_version!,
   };
 }

@@ -37,6 +37,14 @@ const AGENT: CredentialSource = {
   mandate_version: 3,
   mandate_issued_at: "2026-09-15T00:00:00.000Z",
   credential_revision: "revision-abc123",
+  key_version: 2,
+  key_activated_at: "2026-09-20T00:00:00.000Z",
+  key_fingerprint: "a".repeat(64),
+  key_authorization_method: "old_key_proof",
+  key_continuity_proven: true,
+  key_possession_proven: true,
+  credential_state_issued_at: "2026-09-20T00:00:00.000Z",
+  key_recovery_hold_version: null,
 };
 
 const INSIDE_WINDOW = new Date("2026-10-01T00:00:00.000Z");
@@ -107,6 +115,26 @@ describe("credential payload", () => {
     expect(p.vc.credentialSubject.mandate.permissions).toEqual(["Send email", "Book appointments"]);
   });
 
+  test("carries the independent key lifecycle", () => {
+    const p = buildCredentialPayload(AGENT, ORIGIN);
+    expect(p.vc.credentialSubject.key).toEqual({
+      version: 2,
+      algorithm: "Ed25519",
+      fingerprint: "a".repeat(64),
+      activatedAt: "2026-09-20T00:00:00.000Z",
+      authorizationMethod: "old_key_proof",
+      continuityProven: true,
+      possessionProven: true,
+      recoveryHold: false,
+    });
+    expect(p.vc.credentialSubject.publicKey).toBe(AGENT.public_key);
+  });
+
+  test("a recovery hold is signed into the credential", () => {
+    const p = buildCredentialPayload({ ...AGENT, key_recovery_hold_version: 2 }, ORIGIN);
+    expect(p.vc.credentialSubject.key.recoveryHold).toBe(true);
+  });
+
   test("a bare owner_verified flag no longer makes the owner verified", () => {
     // The stored boolean is not evidence. Without an attestation naming an issuer,
     // a method and a date, the credential must say the identity was not checked.
@@ -155,9 +183,9 @@ describe("credential payload", () => {
   test("points at a live status endpoint, since signatures cannot express revocation", () => {
     const p = buildCredentialPayload(AGENT, ORIGIN);
     expect(p.vc.credentialStatus.id).toBe(
-      `${ORIGIN}/api/public/status/${AGENT.public_id}?mandate_version=3&revision=revision-abc123`,
+      `${ORIGIN}/api/public/status/${AGENT.public_id}?mandate_version=3&key_version=2&revision=revision-abc123`,
     );
-    expect(p.jti).toBe(`${ORIGIN}/credentials/${AGENT.public_id}/m3/revision-abc123`);
+    expect(p.jti).toBe(`${ORIGIN}/credentials/${AGENT.public_id}/m3/k2/revision-abc123`);
   });
 
   test("verified owner evidence cannot outlive its own attestation", () => {
@@ -185,9 +213,9 @@ describe("credential payload", () => {
     expect(first.vc.credentialStatus.id).not.toBe(second.vc.credentialStatus.id);
   });
 
-  test("validity window matches the mandate issue and expiry dates", () => {
+  test("validity starts at the latest signed-state activation and ends at mandate expiry", () => {
     const p = buildCredentialPayload(AGENT, ORIGIN);
-    expect(p.iat).toBe(Math.floor(Date.parse(AGENT.mandate_issued_at!) / 1000));
+    expect(p.iat).toBe(Math.floor(Date.parse(AGENT.credential_state_issued_at!) / 1000));
     expect(p.exp).toBe(Math.floor(Date.parse(AGENT.expires_at) / 1000));
   });
 });

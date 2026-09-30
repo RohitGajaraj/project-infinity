@@ -65,7 +65,8 @@ $function$;
 
 -- ======================================================== 2. version store
 alter table public.agents
-  add column if not exists current_key_version integer not null default 1;
+  add column if not exists current_key_version integer not null default 1,
+  add column if not exists key_recovery_hold_version integer;
 
 create table if not exists public.agent_key_versions (
   agent_id uuid not null references public.agents(id) on delete restrict,
@@ -149,6 +150,15 @@ begin
     alter table public.agents
       add constraint agents_current_key_fk
       foreign key (id, current_key_version)
+      references public.agent_key_versions(agent_id, version)
+      deferrable initially deferred;
+  end if;
+  if not exists (
+    select 1 from pg_constraint where conname = 'agents_key_recovery_hold_fk'
+  ) then
+    alter table public.agents
+      add constraint agents_key_recovery_hold_fk
+      foreign key (id, key_recovery_hold_version)
       references public.agent_key_versions(agent_id, version)
       deferrable initially deferred;
   end if;
@@ -485,6 +495,7 @@ as $function$
 declare
   _key_changed boolean;
   _mandate_changed boolean;
+  _hold_changed boolean;
   _key_mode text;
 begin
   if TG_OP = 'INSERT' then
@@ -495,6 +506,7 @@ begin
     end if;
     NEW.current_mandate_version := 1;
     NEW.current_key_version := 1;
+    NEW.key_recovery_hold_version := null;
     NEW.issuance_request_id := coalesce(NEW.issuance_request_id, extensions.gen_random_uuid());
     perform public.agent_public_key_fingerprint(NEW.public_key);
 
@@ -531,6 +543,7 @@ begin
     or NEW.approval_above is distinct from OLD.approval_above
     or NEW.expires_at is distinct from OLD.expires_at
     or NEW.current_mandate_version is distinct from OLD.current_mandate_version;
+  _hold_changed := NEW.key_recovery_hold_version is distinct from OLD.key_recovery_hold_version;
 
   if _key_changed then
     if _mandate_changed or current_setting('infinity.key_change', true) is distinct from '1' then
@@ -544,12 +557,37 @@ begin
             and k.version = NEW.current_key_version
             and k.public_key = NEW.public_key
        )
-       or (_key_mode = 'rotate' and NEW.status is distinct from OLD.status)
-       or (_key_mode = 'recover' and NEW.status <> 'frozen')
+       or (_key_mode = 'rotate' and (
+         NEW.status is distinct from OLD.status
+         or OLD.key_recovery_hold_version is not null
+         or NEW.key_recovery_hold_version is not null
+       ))
+       or (_key_mode = 'recover' and (
+         NEW.status <> 'frozen'
+         or NEW.key_recovery_hold_version <> NEW.current_key_version
+       ))
        or _key_mode not in ('rotate', 'recover') then
       raise exception 'agent_projection_must_match_next_key'
         using errcode = 'integrity_constraint_violation';
     end if;
+  end if;
+
+  if _hold_changed and not _key_changed then
+    if current_setting('infinity.recovery_hold_clear', true) is distinct from '1'
+       or OLD.key_recovery_hold_version is null
+       or OLD.key_recovery_hold_version <> OLD.current_key_version
+       or NEW.key_recovery_hold_version is not null
+       or NEW.status is distinct from OLD.status
+       or _mandate_changed then
+      raise exception 'recovery_hold_requires_current_key_proof'
+        using errcode = 'insufficient_privilege';
+    end if;
+  end if;
+
+  if not _key_changed and not _mandate_changed and not _hold_changed
+     and NEW.status = 'valid' and OLD.status = 'frozen'
+     and OLD.key_recovery_hold_version is not null then
+    raise exception 'recovery_hold_active' using errcode = 'object_not_in_prerequisite_state';
   end if;
 
   if _mandate_changed then
@@ -781,6 +819,7 @@ begin
 
   if _mode = 'rotate' then
     if _disposition <> 'routine'
+       or _agent.key_recovery_hold_version is not null
        or coalesce(_old_signature, '') !~ '^[A-Za-z0-9_-]{86}$'
        or _recent_auth_at is not null then
       raise exception 'invalid_rotation_evidence' using errcode = 'invalid_parameter_value';
@@ -826,6 +865,7 @@ begin
   update public.agents
      set public_key = _new_public_key,
          current_key_version = _next,
+         key_recovery_hold_version = case when _mode = 'recover' then _next else null end,
          status = case when _mode = 'recover' then 'frozen' else status end
    where id = _agent.id;
 
@@ -857,6 +897,118 @@ comment on function public.change_agent_key(
   uuid, uuid, integer, text, text, text, uuid, text, text, text,
   timestamptz, text, text, text, text, timestamptz
 ) is 'After application-side old/new Ed25519 verification and recent-auth checks, atomically appends and activates a new agent key. service_role only.';
+
+-- Recovery is two-step: key replacement sets a durable hold, and ordinary
+-- owner unfreeze remains blocked until a service-verified current-key proof
+-- clears it.
+create or replace function public.set_agent_status(
+  _agent_id uuid,
+  _expected_status text,
+  _new_status text
+)
+  returns text
+  language plpgsql
+  volatile
+  security definer
+  set search_path to 'public'
+as $function$
+declare _agent public.agents;
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated' using errcode = 'insufficient_privilege';
+  end if;
+  if _expected_status not in ('valid', 'frozen') or _new_status not in ('valid', 'frozen') then
+    raise exception 'invalid_status' using errcode = 'invalid_parameter_value';
+  end if;
+
+  select * into _agent from public.agents a
+   where a.id = _agent_id and a.owner_id = auth.uid()
+   for no key update;
+  if not found then
+    raise exception 'agent_not_found_or_not_yours' using errcode = 'no_data_found';
+  end if;
+  if _agent.status = _new_status then return _new_status; end if;
+  if _agent.status <> _expected_status then
+    raise exception 'status_conflict' using errcode = 'serialization_failure';
+  end if;
+  if _new_status = 'valid' and _agent.key_recovery_hold_version is not null then
+    raise exception 'recovery_hold_active' using errcode = 'object_not_in_prerequisite_state';
+  end if;
+
+  update public.agents set status = _new_status where id = _agent_id;
+  return _new_status;
+end
+$function$;
+
+revoke execute on function public.set_agent_status(uuid, text, text) from public, anon;
+grant execute on function public.set_agent_status(uuid, text, text) to authenticated;
+
+create or replace function public.record_recovery_key_confirmation(
+  _public_id text,
+  _nonce text,
+  _signature text,
+  _expected_key_version integer,
+  _signed_material_sha256 text
+)
+  returns table(event_id bigint, hash text, key_version integer)
+  language plpgsql
+  volatile
+  security definer
+  set search_path to 'public'
+as $function$
+declare
+  _agent public.agents;
+  _event_id bigint;
+  _hash text;
+begin
+  if coalesce(_signature, '') !~ '^[A-Za-z0-9_-]{86}$'
+     or _signed_material_sha256 !~ '^[0-9a-f]{64}$' then
+    raise exception 'invalid_recovery_confirmation_evidence'
+      using errcode = 'invalid_parameter_value';
+  end if;
+
+  select * into _agent from public.agents a
+   where a.public_id = _public_id
+     and a.status = 'frozen'
+   for no key update;
+  if not found
+     or _agent.current_key_version <> _expected_key_version
+     or _agent.key_recovery_hold_version is distinct from _expected_key_version then
+    raise exception 'recovery_hold_not_current' using errcode = 'object_not_in_prerequisite_state';
+  end if;
+
+  insert into public.agent_challenges (
+    nonce, agent_id, key_version, purpose, created_at, expires_at, consumed_at
+  ) values (
+    _nonce, _agent.id, _expected_key_version, 'recovery_key_confirmation', now(), now(), now()
+  ) on conflict (nonce) do nothing;
+  if not found then
+    raise exception 'challenge_invalid_or_replayed' using errcode = 'invalid_parameter_value';
+  end if;
+
+  insert into public.agent_events (
+    agent_id, kind, detail, signer, signature, nonce, key_version,
+    signature_scheme, signed_material_sha256
+  ) values (
+    _agent.id, 'recovery_key_confirmed',
+    'Recovered key v' || _expected_key_version || ' proved possession; owner unfreeze remains separate',
+    'agent', _signature, _nonce, _expected_key_version,
+    'infinity-pop-v1', _signed_material_sha256
+  ) returning id, agent_events.hash into _event_id, _hash;
+
+  perform set_config('infinity.recovery_hold_clear', '1', true);
+  update public.agents
+     set key_recovery_hold_version = null
+   where id = _agent.id;
+
+  return query select _event_id, _hash, _expected_key_version;
+end
+$function$;
+
+revoke execute on function public.record_recovery_key_confirmation(text, text, text, integer, text)
+  from public, anon, authenticated;
+grant execute on function public.record_recovery_key_confirmation(text, text, text, integer, text)
+  to service_role;
 
 -- ============================================= 7. key-aware signed actions
 create or replace function public.record_signed_action_v2(
@@ -1227,7 +1379,8 @@ create function public.verify_agent(_public_id text)
     credential_revision text,
     key_version integer, key_activated_at timestamptz, key_fingerprint text,
     key_authorization_method text, key_continuity_proven boolean,
-    key_possession_proven boolean, credential_state_issued_at timestamptz
+    key_possession_proven boolean, credential_state_issued_at timestamptz,
+    key_recovery_hold_version integer
   )
   language sql
   stable
@@ -1255,6 +1408,7 @@ as $function$
         'key_authorization_method', k.authorization_method,
         'key_continuity_proven', k.continuity_proven,
         'key_possession_proven', k.possession_proven,
+        'key_recovery_hold_version', a.key_recovery_hold_version,
         'owner_name', p.display_name,
         'attestation_issuer', att.issuer,
         'attestation_method', att.method,
@@ -1272,7 +1426,8 @@ as $function$
     ), 'hex'),
     k.version, k.activated_at, k.fingerprint, k.authorization_method,
     k.continuity_proven, k.possession_proven,
-    greatest(m.issued_at, k.activated_at, coalesce(att.verified_at, m.issued_at))
+    greatest(m.issued_at, k.activated_at, coalesce(att.verified_at, m.issued_at)),
+    a.key_recovery_hold_version
   from public.agents a
   join public.agent_mandate_versions m
     on m.agent_id = a.id and m.version = a.current_mandate_version
@@ -1299,6 +1454,7 @@ begin
        left join public.agent_key_versions k
          on k.agent_id = a.id and k.version = a.current_key_version
        where a.current_key_version <> 1
+          or a.key_recovery_hold_version is not null
           or k.agent_id is null
           or k.public_key <> a.public_key
           or k.fingerprint <> public.agent_public_key_fingerprint(a.public_key)

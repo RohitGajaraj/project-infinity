@@ -8,6 +8,7 @@ export function classifyCredentialStatus(input: {
   currentKeyVersion: number;
   currentRevision: string;
   agentStatus: string;
+  recoveryHold?: boolean;
   expiresAt: string;
   now?: number;
 }) {
@@ -30,6 +31,7 @@ export function classifyCredentialStatus(input: {
   return {
     credentialStatus,
     agentStatus,
-    usable: credentialStatus === "current" && agentStatus === "valid",
+    usable:
+      credentialStatus === "current" && agentStatus === "valid" && input.recoveryHold !== true,
   };
 }

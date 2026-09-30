@@ -13,6 +13,7 @@ export type VerifiedAgent = Database["public"]["Functions"]["verify_agent"]["Ret
   key_continuity_proven?: boolean;
   key_possession_proven?: boolean;
   credential_state_issued_at?: string;
+  key_recovery_hold_version?: number | null;
 };
 
 /**
@@ -58,6 +59,7 @@ export type AgentKeyLifecycle = {
   continuityProven: boolean;
   possessionProven: boolean;
   stateIssuedAt: string;
+  recoveryHoldVersion: number | null;
 };
 
 export function keyLifecycle(agent: VerifiedAgent): AgentKeyLifecycle | null {
@@ -85,5 +87,9 @@ export function keyLifecycle(agent: VerifiedAgent): AgentKeyLifecycle | null {
     continuityProven: agent.key_continuity_proven,
     possessionProven: agent.key_possession_proven,
     stateIssuedAt: agent.credential_state_issued_at,
+    recoveryHoldVersion:
+      Number.isInteger(agent.key_recovery_hold_version) && (agent.key_recovery_hold_version ?? 0) > 0
+        ? agent.key_recovery_hold_version!
+        : null,
   };
 }

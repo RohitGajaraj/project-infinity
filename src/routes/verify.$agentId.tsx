@@ -18,6 +18,7 @@ export const Route = createFileRoute("/verify/$agentId")({
         logHead: null,
         attestation: attestationFromRow({}),
         credentialRevision: null,
+        key: null,
       };
     }
 
@@ -30,20 +31,31 @@ export const Route = createFileRoute("/verify/$agentId")({
         logHead: null,
         attestation: attestationFromRow({}),
         credentialRevision: null,
+        key: null,
       };
 
     if (
       !Number.isInteger(a.mandate_version) ||
       typeof a.mandate_issued_at !== "string" ||
-      typeof a.credential_revision !== "string"
+      typeof a.credential_revision !== "string" ||
+      !Number.isInteger(a.key_version) ||
+      typeof a.key_activated_at !== "string" ||
+      typeof a.key_fingerprint !== "string" ||
+      !/^[0-9a-f]{64}$/.test(a.key_fingerprint) ||
+      !["initial", "legacy_import", "old_key_proof", "owner_recovery"].includes(
+        a.key_authorization_method ?? "",
+      )
     ) {
-      throw new Error("mandate_lifecycle_unavailable");
+      throw new Error("agent_authority_lifecycle_unavailable");
     }
     const mandateVersion = a.mandate_version!;
+    const keyVersion = a.key_version!;
     const mandateIssuedAt = a.mandate_issued_at;
     const credentialRevision = a.credential_revision;
+    const recoveryHold = a.key_recovery_hold_version === keyVersion;
     const expired = new Date(a.expires_at).getTime() <= Date.now();
-    const verdict: Verdict = expired ? "expired" : a.status === "valid" ? "valid" : "frozen";
+    const verdict: Verdict =
+      expired ? "expired" : a.status === "valid" && !recoveryHold ? "valid" : "frozen";
     const attestation = attestationFromRow(a);
 
     const card: AgentCard = {
@@ -65,6 +77,15 @@ export const Route = createFileRoute("/verify/$agentId")({
       logHead: a.last_hash,
       attestation,
       credentialRevision,
+      key: {
+        version: keyVersion,
+        activatedAt: a.key_activated_at!,
+        fingerprint: a.key_fingerprint!,
+        authorizationMethod: a.key_authorization_method!,
+        continuityProven: a.key_continuity_proven === true,
+        possessionProven: a.key_possession_proven === true,
+        recoveryHold,
+      },
     };
   },
   head: ({ params }) => ({
@@ -130,7 +151,7 @@ const COPY: Record<Verdict, { tone: Tone; label: string; headline: string; body:
 
 function VerifyPage() {
   const { agentId } = Route.useParams();
-  const { verdict, agent, publicKey, logHead, attestation, credentialRevision } =
+  const { verdict, agent, publicKey, logHead, attestation, credentialRevision, key } =
     Route.useLoaderData();
   const copy = COPY[verdict];
 
@@ -175,6 +196,31 @@ function VerifyPage() {
                 <dt>Agent's own signing key</dt>
                 <dd className="mt-1 break-all font-mono">{publicKey}</dd>
               </div>
+              {key && (
+                <>
+                  <div>
+                    <dt>Current key lifecycle</dt>
+                    <dd className="mt-1">
+                      Key v{key.version} · {key.authorizationMethod.replaceAll("_", " ")}
+                      {key.recoveryHold ? " · recovery hold" : ""}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Key fingerprint</dt>
+                    <dd className="mt-1 break-all font-mono">sha256:{key.fingerprint}</dd>
+                  </div>
+                  <div>
+                    <dt>Continuity evidence</dt>
+                    <dd className="mt-1">
+                      {key.continuityProven
+                        ? "Prior key signed this transition"
+                        : key.possessionProven
+                          ? "New key proved possession; prior-key continuity was not claimed"
+                          : "No transition claim; possession is checked per interaction"}
+                    </dd>
+                  </div>
+                </>
+              )}
               {credentialRevision && (
                 <div>
                   <dt>Current credential revision</dt>
@@ -203,7 +249,7 @@ curl -s "https://infinity.id/api/public/credential/${agentId}"
 curl -s "https://infinity.id/.well-known/jwks.json"
 
 # Current status — call vc.credentialStatus.id from the verified JWT.
-# It includes mandate_version + revision; an agent-only URL fails closed.
+# It includes mandate_version + key_version + revision; agent-only URLs fail closed.
 
 # Full credential + possession test vector
 curl -s "https://infinity.id/api/public/sandbox"`}

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsoleShell } from "@/components/ConsoleShell";
 import { AgentIdCard } from "@/components/AgentIdCard";
+import { AgentKeyLifecycle } from "@/components/AgentKeyLifecycle";
 import { MandateLifecycle } from "@/components/MandateLifecycle";
 import { fmtDate, formatLimits } from "@/lib/keys";
 
@@ -32,6 +33,7 @@ type ApprovalRow = {
   expires_at: string;
   consumed_at: string | null;
   mandate_version?: number | null;
+  key_version?: number | null;
 };
 
 function AgentDetail() {
@@ -90,7 +92,7 @@ function AgentDetail() {
       const { data, error } = await client
         .from("approval_requests")
         .select(
-          "id, action, amount_usd, status, reference, requested_at, expires_at, consumed_at, mandate_version",
+          "id, action, amount_usd, status, reference, requested_at, expires_at, consumed_at, mandate_version, key_version",
         )
         .eq("agent_id", id)
         .order("requested_at", { ascending: false });
@@ -179,19 +181,31 @@ function AgentDetail() {
       </ConsoleShell>
     );
   const valid = a.status === "valid";
-  const mandateVersionValue = (a as typeof a & { current_mandate_version?: number })
-    .current_mandate_version;
-  if (!Number.isInteger(mandateVersionValue) || mandateVersionValue! < 1) {
+  const authority = a as typeof a & {
+    current_mandate_version?: number;
+    current_key_version?: number;
+    key_recovery_hold_version?: number | null;
+  };
+  const mandateVersionValue = authority.current_mandate_version;
+  const keyVersionValue = authority.current_key_version;
+  if (
+    !Number.isInteger(mandateVersionValue) ||
+    mandateVersionValue! < 1 ||
+    !Number.isInteger(keyVersionValue) ||
+    keyVersionValue! < 1
+  ) {
     return (
       <ConsoleShell>
-        <p className="font-serif text-3xl">Mandate lifecycle is unavailable.</p>
+        <p className="font-serif text-3xl">Authority lifecycle is unavailable.</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          This agent is not safe to edit until the versioning migration is live.
+          This agent is not safe to edit until mandate and key versioning are live.
         </p>
       </ConsoleShell>
     );
   }
   const mandateVersion = mandateVersionValue as number;
+  const keyVersion = keyVersionValue as number;
+  const recoveryHold = authority.key_recovery_hold_version === keyVersion;
 
   return (
     <ConsoleShell>
@@ -232,7 +246,9 @@ function AgentDetail() {
             <p className="mt-1 text-sm text-muted-foreground">
               {valid
                 ? "Freezing makes the live status endpoint refuse this agent on the next uncached check."
-                : "This agent is frozen. Businesses checking its ID are told not to trust it."}
+                : recoveryHold
+                  ? "This recovered agent is frozen. Its current key must prove fresh possession before ordinary unfreeze is available."
+                  : "This agent is frozen. Businesses checking its ID are told not to trust it."}
             </p>
             {toggleError && (
               <p className="mt-3 text-sm text-seal" role="alert">
@@ -241,12 +257,28 @@ function AgentDetail() {
             )}
             <button
               onClick={() => void toggle()}
-              disabled={toggling}
+              disabled={toggling || recoveryHold}
               className={`mt-5 w-full rounded-md py-3 text-sm font-medium disabled:opacity-50 ${valid ? "bg-seal text-primary-foreground" : "bg-primary text-primary-foreground"}`}
             >
-              {toggling ? "Updating…" : valid ? "Freeze agent" : "Unfreeze agent"}
+              {toggling
+                ? "Updating…"
+                : recoveryHold
+                  ? "Recovery proof required"
+                  : valid
+                    ? "Freeze agent"
+                    : "Unfreeze agent"}
             </button>
           </div>
+
+          <AgentKeyLifecycle
+            current={{
+              agentId: a.id,
+              publicId: a.public_id,
+              version: keyVersion,
+              publicKey: a.public_key,
+              recoveryHold,
+            }}
+          />
 
           <MandateLifecycle
             current={{
@@ -300,7 +332,9 @@ function AgentDetail() {
                 const expired = new Date(r.expires_at).getTime() <= Date.now();
                 const superseded =
                   r.mandate_version === null ||
-                  (r.mandate_version !== undefined && r.mandate_version !== mandateVersion);
+                  r.key_version === null ||
+                  (r.mandate_version !== undefined && r.mandate_version !== mandateVersion) ||
+                  (r.key_version !== undefined && r.key_version !== keyVersion);
                 const pending = r.status === "pending" && !expired && !superseded;
                 return (
                   <li key={r.id} className="border-b border-border py-4">

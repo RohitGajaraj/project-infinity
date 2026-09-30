@@ -20,6 +20,9 @@ type State =
       issuer: string;
       expires: string;
       mandateVersion: number;
+      keyVersion: number;
+      keyMethod: string;
+      keyContinuity: string;
       revision: string;
       provisional: boolean;
       warning?: string;
@@ -92,6 +95,13 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
               year: "numeric",
             }),
             mandateVersion: result.subject.mandate.version ?? 1,
+            keyVersion: result.subject.key?.version ?? 1,
+            keyMethod: result.subject.key?.authorizationMethod ?? "legacy",
+            keyContinuity: result.subject.key?.continuityProven
+              ? "Prior key signed transition"
+              : result.subject.key?.possessionProven
+                ? "New key only; continuity not claimed"
+                : "No transition claim",
             revision: result.payload.credentialRevision ?? "legacy",
             provisional,
             ...(warning ? { warning } : {}),
@@ -141,6 +151,8 @@ export function CredentialCheck({ agentId }: { agentId: string }) {
             <Row label="Issuer" value={state.issuer} />
             <Row label="Signing key" value={state.kid} mono />
             <Row label="Mandate" value={`v${state.mandateVersion}`} />
+            <Row label="Agent key" value={`v${state.keyVersion} · ${state.keyMethod}`} />
+            <Row label="Key continuity" value={state.keyContinuity} />
             <Row label="Credential revision" value={state.revision} mono />
             <Row label="Credential expires" value={state.expires} />
           </dl>

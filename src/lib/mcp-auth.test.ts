@@ -43,7 +43,7 @@ describe("MCP proof-of-possession boundary", () => {
       },
       async () => {
         called = true;
-        return { ok: true, eventId: 1, hash: "hash" };
+        return { ok: true, eventId: 1, hash: "hash", keyVersion: 4 };
       },
     );
 
@@ -68,11 +68,11 @@ describe("MCP proof-of-possession boundary", () => {
       },
       async (input) => {
         recorded = input as Record<string, unknown>;
-        return { ok: true, eventId: 1, hash: "hash" };
+        return { ok: true, eventId: 1, hash: "hash", keyVersion: 4 };
       },
     );
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, keyVersion: 4 });
     expect(recorded).toMatchObject({
       publicId: "inf_PUBLIC",
       nonce,
@@ -105,7 +105,7 @@ describe("MCP proof-of-possession boundary", () => {
       },
       async () => {
         called = true;
-        return { ok: true, eventId: 1, hash: "hash" };
+        return { ok: true, eventId: 1, hash: "hash", keyVersion: 4 };
       },
     );
     expect(result).toEqual({ ok: false, reason: "challenge_invalid_or_replayed" });
@@ -123,7 +123,7 @@ describe("MCP proof-of-possession boundary", () => {
         requestUrl: "https://infinity.id/mcp",
         requestBody: "{}",
       },
-      async () => ({ ok: true, eventId: 1, hash: "hash" }),
+      async () => ({ ok: true, eventId: 1, hash: "hash", keyVersion: 4 }),
     );
     expect(result).toEqual({ ok: false, reason: "challenge_invalid_or_replayed" });
   });
@@ -142,7 +142,7 @@ describe("MCP proof-of-possession boundary", () => {
       },
       async () => {
         called = true;
-        return { ok: true, eventId: 1, hash: "hash" };
+        return { ok: true, eventId: 1, hash: "hash", keyVersion: 4 };
       },
     );
 
@@ -154,6 +154,8 @@ describe("MCP proof-of-possession boundary", () => {
     "bad_signature",
     "challenge_invalid_or_replayed",
     "unknown_or_unusable_agent",
+    "agent_key_lifecycle_unavailable",
+    "key_version_conflict",
   ] as const)("%s fails closed at the transport authorization boundary", async (reason) => {
     const result = await authorizeMcpToolCall(
       {

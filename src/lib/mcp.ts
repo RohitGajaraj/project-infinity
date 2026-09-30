@@ -236,6 +236,8 @@ export type McpContext = {
     consumed: boolean;
     mandateVersion?: number | null;
     currentMandateVersion?: number;
+    keyVersion?: number | null;
+    currentKeyVersion?: number;
   } | null>;
   /** Current allowance, so guidance reflects what is actually left. */
   getAllowance?: (publicId: string) => Promise<Allowance | null>;
@@ -292,6 +294,8 @@ const REFUSAL_HINTS: Record<string, string> = {
   amount_not_in_cents: "Amounts must be whole cents, so at most two decimal places.",
   contention_retry:
     "Another request for this agent was in flight, so the outcome is unknown and nothing was recorded. Do not pay. Retry once with the SAME reference.",
+  key_version_conflict:
+    "The agent key changed after this request was authorized. Obtain a fresh credential and challenge, then retry without paying first.",
 };
 
 function text(value: unknown): ToolOutcome {
@@ -337,6 +341,8 @@ function selfView(agent: AgentView, origin: string) {
 function limitsView(agent: AgentView) {
   return {
     mandate_version: agent.mandate_version ?? 1,
+    key_version: agent.key_version ?? 1,
+    key_fingerprint: agent.key_fingerprint,
     mandate_issued_at: agent.mandate_issued_at ?? agent.created_at,
     permitted_actions: agent.permissions,
     monthly_spend_limit_usd: agent.monthly_spend_limit,
@@ -484,9 +490,11 @@ export async function callTool(
         already_used: state.consumed,
         mandate_version: state.mandateVersion ?? null,
         current_mandate_version: state.currentMandateVersion ?? null,
+        key_version: state.keyVersion ?? null,
+        current_key_version: state.currentKeyVersion ?? null,
         explanation:
           state.status === "superseded"
-            ? "This approval belongs to an older mandate version and cannot authorize anything. Request a new approval under the current mandate."
+            ? "This approval belongs to an older mandate or agent-key version and cannot authorize anything. Request a new approval under the current authority."
             : state.status === "approved" && !state.consumed
               ? "Approved. Call record_spend with this reference as approval_reference. It can only be used once."
               : state.status === "approved" && state.consumed
@@ -519,7 +527,7 @@ export async function callTool(
         credential,
         format: "vc+jwt",
         jwks_uri: `${ctx.issuerOrigin}/.well-known/jwks.json`,
-        status_endpoint: `${ctx.issuerOrigin}/api/public/status/${agent.public_id}?mandate_version=${agent.mandate_version ?? 1}&revision=${encodeURIComponent(agent.credential_revision ?? `legacy-v${agent.mandate_version ?? 1}`)}`,
+        status_endpoint: `${ctx.issuerOrigin}/api/public/status/${agent.public_id}?mandate_version=${agent.mandate_version ?? 1}&key_version=${agent.key_version ?? 1}&revision=${encodeURIComponent(agent.credential_revision ?? `legacy-m${agent.mandate_version ?? 1}-k${agent.key_version ?? 1}`)}`,
         ...(challenge
           ? {
               proof_of_possession: proof,
