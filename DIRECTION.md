@@ -1448,10 +1448,11 @@ Lovable's secret store, plus a V3 `status.updated` destination targeting
 `/api/webhooks/didit`. Sandbox deployments must explicitly set `DIDIT_ENVIRONMENT=sandbox`; production
 defaults to `live`.
 
-After Lovable applies the migration, run the expanded live probe. It verifies anonymous table denial,
-auth-derived attempt ownership, duplicate-start reuse, owner-only status, and service-role-only
-finalization. Then run one signed Didit console test and one real sandbox flow, confirm no provider PII
-landed in either table/logs, and confirm the fresh credential carries the operator-asserted evidence.
+After Lovable applies the migration, run `bun run e2e:identity`. It verifies anonymous table denial,
+auth-derived attempt ownership, duplicate-start/bind reuse, owner-only status, and service-role-only
+finalization without requiring the service secret locally. Then run one signed Didit console test and
+one real sandbox flow, confirm no provider PII landed in either table/logs, and confirm the fresh
+credential carries the operator-asserted evidence.
 
 ### 18.6 Source validation
 
@@ -1466,8 +1467,11 @@ and PII processing order.
 - `bun run build`: production client, SSR, Nitro and Cloudflare bundles pass
 - `git diff --check`: pass
 
-Database execution and a real Didit delivery remain intentionally unclaimed until Lovable applies the
-migration and the §18.5 deployment probe runs.
+Lovable applied the migration on 2026-09-30. The publishable-key live probe then passed every
+owner-flow boundary: one auth-derived attempt, duplicate start and bind reuse, owner status, finalizer
+denial for anon/authenticated, legacy-recorder denial, and zero anonymous table reads. The remaining
+unclaimed boundary is a service-role finalization driven by a real signed Didit sandbox delivery; run
+that only after the founder configures the provider application and secrets in §19/README.
 
 ---
 

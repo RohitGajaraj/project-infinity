@@ -194,6 +194,7 @@ Didit password, API key or webhook secret into this repository or chat.
    because Didit redirects the browser back to `/agents?identity=returned` on that origin.
 5. **Apply the database migration before testing the UI.** Lovable must apply
    `supabase/migrations/20260930040000_owner_identity_flow.sql`, then regenerate its database types.
+   The connected project applied it on 2026-09-30; keep this step for every fresh deployment.
 6. **Test destination authentication.** Use Didit's **Try Webhook** action. Infinity should return 2xx
    for the signed test delivery but must not create an attestation from it.
 7. **Run one real sandbox journey through Infinity.** Sign in to Infinity, open **Your agents**, and
@@ -203,9 +204,11 @@ Didit password, API key or webhook secret into this repository or chat.
 8. **Confirm the evidence chain.** The console card should become **Attested** and name Didit, the
    method and high assurance. Open one agent's public Verify page and fetch a fresh credential; both
    must show the operator-asserted attestation while keeping the display name marked self-declared.
-9. **Run the live repository probe.** With the migrated database and deployed app available, run
-   `bun run e2e`. It checks RLS, auth-derived attempt ownership, duplicate start/bind idempotency,
-   finalizer denial for public roles and the superseded recorder lockout.
+9. **Run the live owner-flow probe.** With the migrated database available, run
+   `bun run e2e:identity`. It needs only the publishable Supabase key and checks RLS, auth-derived
+   attempt ownership, duplicate start/bind idempotency, finalizer denial for public roles and the
+   superseded recorder lockout. The broader `bun run e2e` additionally needs an app deployment whose
+   server has the service-role secret; never copy that secret into a local file merely to run it.
 
 Didit's [quick start](https://docs.didit.me/getting-started/quick-start) recommends hosted sessions;
 [API authentication](https://docs.didit.me/getting-started/api-authentication) documents per-Application

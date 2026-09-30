@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "keygen": "bun run scripts/keygen.ts",
     "test": "bun test",
-    "e2e": "bun run scripts/e2e-phase1.ts"
+    "e2e": "bun run scripts/e2e-phase1.ts",
+    "e2e:identity": "bun run scripts/e2e-owner-identity.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
