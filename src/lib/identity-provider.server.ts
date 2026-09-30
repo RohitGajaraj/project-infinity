@@ -152,20 +152,22 @@ export function diditProvider(
       // boundary operates on a recursively redacted projection.
       const safe = stripPii(parsed) as Record<string, unknown>;
 
-      // Didit's console test is a signed transport test, not an identity result.
-      // Its generated payload may omit production-only event_id. Authenticity,
-      // freshness and body integrity are sufficient to acknowledge it; this union
-      // cannot reach the finalizer route branch.
-      if (isTestDelivery) return { test: true };
-
       const eventId = stringField(safe, "event_id", 100);
-      if (!eventId) return null;
       const webhookType = stringField(safe, "webhook_type", 50);
-      const environment = stringField(safe, "environment", 20);
-      if (webhookType !== "status.updated" || environment !== config.environment) return null;
-
       const reference = stringField(safe, "session_id", 200);
       const attemptId = stringField(safe, "vendor_data", 100);
+      const productionShaped =
+        webhookType === "status.updated" && !!eventId && !!reference && isUuid(attemptId);
+
+      // The test marker itself is unsigned. Honor it only for Didit's synthetic
+      // console shape, which omits a production event id / real attempt UUID. A
+      // captured real delivery with this header added must still be finalized.
+      if (isTestDelivery && !productionShaped) return { test: true };
+
+      if (!eventId || webhookType !== "status.updated") return null;
+      const environment = stringField(safe, "environment", 20);
+      if (environment !== config.environment) return null;
+
       const workflowId = stringField(safe, "workflow_id", 100);
       const status = stringField(safe, "status", 50);
       const occurredAtSeconds = safe["created_at"];

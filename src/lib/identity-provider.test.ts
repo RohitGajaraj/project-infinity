@@ -177,6 +177,21 @@ describe("Didit hosted identity flow", () => {
     expect(verdict).toEqual({ test: true });
   });
 
+  test("a test header cannot suppress a signed production-shaped verdict", async () => {
+    const value = payload();
+    const body = JSON.stringify(value);
+    const signature = await hmac(canonicalJson(value));
+    const verdict = await provider().parseWebhook(
+      body,
+      new Headers({
+        "x-timestamp": String(NOW / 1000),
+        "x-signature-v2": signature,
+        "x-didit-test-webhook": "true",
+      }),
+    );
+    expect(verdict).toMatchObject({ test: false, attemptId: ATTEMPT, outcome: "approved" });
+  });
+
   test("non-terminal and declined statuses remain distinct", async () => {
     for (const [status, expected] of [
       ["In Review", "pending"],

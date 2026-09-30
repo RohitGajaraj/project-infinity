@@ -1335,12 +1335,9 @@ and insurance rails remain labelled as roadmap rather than appearing in current-
   sample is explicitly non-real; challenge issuance is stateless and reveals no agent-existence
   signal.
 
-This pass introduces `20260930030000_bound_agent_challenges.sql`. **The migration must be applied
-before the dependent MCP application code is deployed**, because it changes nonce consumption from
-updating a pre-issued row to inserting into a replay ledger. We have no database credentials here, so
-Lovable must apply it. Immediately afterward, run the live probe and confirm: repeated/parallel
-challenges allocate no rows, valid signed calls consume distinct nonces, replay and wrong-agent proofs
-fail, failures leave allowance unchanged, and owner freeze is not blocked by challenge traffic.
+Lovable applied `20260930030000_bound_agent_challenges.sql` as live migration `0009` on
+2026-09-30. The supervisor verified mirror fidelity, grants and the live database state; signed MCP
+requests and the public-ID impersonation probe pass. This historical deployment requirement is closed.
 
 ### 17.5 What remains, in order
 
@@ -1629,3 +1626,30 @@ Regional depth is a tie-breaker, never the primary decision.
 6. Only then package the finished primitive into local MCP, UCP, Web Bot Auth and framework adapters.
 
 This order is binding until real verifier evidence changes it.
+
+### 19.10 First live sandbox acceptance, 2026-09-30
+
+The foundation flow has now run against the published system at
+`https://infinityalpha.lovable.app`, not only unit fixtures:
+
+1. Didit's signed V3 console test reached `/api/webhooks/didit` and returned HTTP 200.
+2. The authenticated owner launched a real Didit Sandbox hosted session from Infinity and completed
+   document, liveness and face verification on mobile.
+3. The signed provider result finalized to **Didit · government ID with liveness · high assurance**,
+   dated 30 September 2026 and expiring 30 September 2027. The console displayed the required
+   operator-asserted limitation and produced no browser errors.
+4. A permanent, clearly labelled `Infinity Sandbox Agent` (`inf_7PVD-2ZPP-QNRL`) was issued with only
+   `Talk to other agents`, a zero-dollar monthly ceiling, approval required for every spend, and a
+   seven-day mandate. Its private key was deliberately discarded without being read or copied because
+   the record exists only for credential propagation testing.
+5. The public Verify page separated the self-declared owner label, live status, `didit · high`
+   account evidence and presenter-not-proven state. Browser-side EdDSA verification passed.
+6. The published VC-JWT carried `nameSource: self_declared`, `operatorAsserted: true`, Didit issuer,
+   government-ID-and-liveness method, high assurance, the zero-dollar mandate and the canonical live
+   status URL.
+7. The test agent was frozen. The uncached public status endpoint returned `status: frozen` and
+   `usable: false` with the updated chain head.
+
+This closes §19.9 item 1's sandbox mechanism test. It does **not** make production credentials ready
+for reliance: issuer metadata still reports `key_mode: provisional`, so the founder must install an
+explicit issuer JWK before real users depend on one.

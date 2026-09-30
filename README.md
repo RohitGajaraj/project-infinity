@@ -1,9 +1,9 @@
 # Project Infinity
 
-> _Last updated: 2026-09-29. Status: **Agent ID + the MCP surface work end to end — an agent can now
-> use Infinity. 100 unit tests, 40 live end-to-end checks (`bun run e2e`).** Remaining phase-1 gap:
-> owner identity verification ([`DIRECTION.md` §9](./DIRECTION.md) G4). Focus is deliberately narrow —
-> see §14.4._
+> _Last updated: 2026-09-30. Status: **the agent credential, owner-accountability flow, public
+> verification, proof of possession, revocation, mandate enforcement and MCP security boundary are
+> implemented. 200+ unit tests and live database/browser probes pass.** The next foundation item is
+> mandate lifecycle and verifier-visible versioning (`DIRECTION.md` §19.9 item 2)._
 
 > [!WARNING]
 > **Competitive finding, 2026-09-29.** Baselayer announced a **$35M Series A on 2026-09-22** and
@@ -14,13 +14,9 @@
 > them. Separately, World's AgentKit (Altman-backed, launched 2026-03-17) holds the "cryptographic proof
 > a real human stands behind this agent" claim.
 >
-> **Resolved in [`DIRECTION.md` §13](./DIRECTION.md):** identity is the wedge, **infrastructure is the
-> business.** Baselayer sells a *check* to the receiving institution; we issue the *identity and the
-> rails* to the accountable party and let anyone check for free. A fraud-intelligence company will not
-> become a telco, which is why the **voice channel is the wedge** — it is the one documented pain
-> (Meta pays humans because businesses hang up), it has no competitor because there is no HTTP header on
-> a phone call, and it needs the business to integrate **nothing**, so it works with one customer and
-> zero verifiers. Every line of code already written is the mechanism and is reused unchanged.
+> **Superseded:** §13's initial competitive response called identity and voice wedges. Founder direction
+> in §14.4 and §19.9 parks channel expansion: the basement—accountability, mandate lifecycle, key
+> lifecycle and approval evidence—must be strong before voice, email, wallet or connector packaging.
 
 **Infinity is the neutral trust layer for AI agents.** An agent built with anything — Claude Code,
 ChatGPT, Instinct, Muse, Cursor, or a company's own stack — gets what a person has: a verified identity
