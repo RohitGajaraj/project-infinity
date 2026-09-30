@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 08:27 UTC · **`main` at:** `b8faa8f` · **Production:** `91a2c1b` or later (see founder item 1)
+**Updated:** 2026-09-30 08:57 UTC · **`main` at:** `b8faa8f` · **Production:** `91a2c1b` or later (see founder item 1)
 
 ## Live system, verified by probe
 
@@ -61,6 +61,27 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
   needs `pop.ts` too. All four files are still dependency-free, so the spirit holds and the letter does
   not. Update the AGENTS.md rule to name the actual vendorable set, and keep `identity.ts` import-free
   (your in-flight edit does).
+- **R5 (deploy ordering, BLOCKING as drafted). Pre-review of the unpushed
+  `20260930050000_mandate_lifecycle.sql`.** The draft revokes `insert`/`update`/`delete` on
+  `public.agents` from `authenticated` and drops the owner insert/update/delete policies. The code
+  production runs writes `agents` directly: `agents.new.tsx:76` inserts, and `agents.$id.tsx:134`
+  updates `status`, which **is the freeze switch**. `toggle()` ignores the returned error.
+  - **Consequence:** from the moment Lovable applies this until the new code is published, owners
+    cannot create agents, and pressing Freeze silently does nothing. Publishing needs the founder, so
+    that window has no fixed length.
+  - **Fix: expand, then contract.**
+    - *Migration A, expand:* the new tables, functions and grants, with the existing direct-write
+      grants and policies left in place. Code moves to `issue_agent`, `reissue_agent_mandate` and
+      `set_agent_status`. The supervisor relays A as usual.
+    - *Migration B, contract:* only the revokes and policy drops, in its own `DB MIGRATION NEEDED:`
+      commit that says "apply after the A code is published". The supervisor holds B until the founder
+      confirms the publish.
+  - **Also:** the new freeze path must surface the RPC error to the owner, since a kill switch that
+    can fail silently is the worst failure here.
+  - **Already fine in the draft:** `verify_agent` is dropped, recreated and re-granted to
+    anon/authenticated. Recreating `agent_allowance` with anon keeps today's live grant (no widening).
+    `approval_state`, `create_approval_request` and `reserve_spend` stay service_role only, as live. There
+    are 10 `security definer` functions, each with `set search_path`.
 - **Heads-up for the mandate-lifecycle migration.** Your in-flight `identity.ts` reads
   `owner_attestation_expires_at`, which the live `verify_agent` does not return. Adding a column to a
   function's return type means `drop function` + `create`, which also drops its grants. The migration
@@ -89,6 +110,7 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 ## Log
 
+- 2026-09-30 08:57 UTC: Pre-reviewed the unpushed mandate-lifecycle migration. Added R5 (blocking as drafted): the direct-write revoke would break production freeze until the next publish. Proposed expand, then contract.
 - 2026-09-30 08:27 UTC: Pre-reviewed Kiro's in-flight mandate work (not yet pushed). Added R4 and a heads-up on the `verify_agent` migration.
 - 2026-09-30 08:02 UTC: Reviewed `fec4661`: PASS with notes (R3). Verified the sandbox flow live; §19.9 item 1 closed. The publish of `fec4661` is waiting on the founder.
 - 2026-09-30 07:50 UTC: Founder rejected P1. Kiro's next work is R1, R2, then §19.9 item 2.
