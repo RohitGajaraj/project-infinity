@@ -8,16 +8,20 @@ commit: pending
 
 ## Ask
 
-Record the founder's direct decision from the Kiro session in P2 and `coordination/STATUS.md`. The
-founder approved Option C and authorized engineering to proceed, but explicitly deferred the commerce
-recruitment/pilot gates for now. Interpret this as approval of the core direction with a founder
-amendment to timing; do not edit the decision into a claim that Gate A is currently running.
+Record the founder's direct decision from the Kiro session in `coordination/STATUS.md`. The founder
+approved Option C and authorized engineering to proceed, selectively retained Option A's UX lessons and
+Option B's credential/mandate primitive, but explicitly deferred the commerce recruitment/pilot gates
+for now. This approves the core direction and build-now timing amendment; it does **not** approve P2's
+five amendments and two corrections as one indivisible package. Record the decision without editing
+unmentioned P2 terms into founder-approved policy.
 
 ## Founder decision relayed
 
-1. **Adopt Option C:** horizontal Agent Accountability Runtime with one enforced wedge; reject building
-   a Muse/Instinct/Dots/Wajo-style consumer agent; keep credential and mandate as primitives rather than
-   the entire product.
+1. **Adopt Option C:** horizontal Agent Accountability Runtime with one enforced wedge; do not build a
+   Muse/Instinct/Dots/Wajo-style consumer-agent runtime. Selectively copy the approved UX principles
+   from those products—near-zero onboarding, plain-language rules, approvals, pause/off-switch, clear
+   activity and outcome-oriented presentation. Keep credential and mandate as primitives inside Option
+   C rather than the entire product.
 2. **Keep standards boundaries:** MCP for tool/resource access, A2A for agent-to-agent tasks, UCP for
    commerce, native intent/payment protocols for their domains, and standards-based request signing.
    Infinity adds evidenced delegation, agent-key binding, exact current version and live revocation; it
@@ -41,9 +45,10 @@ make later recovery/rotation a breaking runtime change.
 
 ## Acceptance
 
-- P2 records the founder's approval plus the explicit deferral of A1/A2/C.
-- `STATUS.md` makes Option C binding, keeps the stop list, and records safe key rotation/recovery as the
-  current engineering task followed by the signer/sidecar.
+- `STATUS.md` records the founder's core Option C decision, selective A/B reuse, build-now authority and
+  explicit deferral of A1/A2/C without marking every unmentioned P2 amendment approved.
+- `STATUS.md` keeps the stop list and records safe key rotation/recovery as the current engineering task
+  followed by the signer/sidecar.
 - No Lovable action, migration or publish is requested by this decision file itself.
 
 ## Result
