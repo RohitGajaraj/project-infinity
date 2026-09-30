@@ -2207,3 +2207,190 @@ consumer assistant. It is one customer-controlled external agent with its key ac
 egress constrained, one unrelated recipient enforcing the negotiated result, and the accountable/
 operator side paying because more legitimate actions complete safely. If that cannot be produced, the
 company thesis is not rescued by adding more features.
+
+### 21.14 Founder direction after review, 2026-09-30
+
+The founder directly accepted **Option C: horizontal trust runtime with one enforced wedge** and the
+standards posture in §21: MCP for tool/resource access, A2A for agent-to-agent tasks, UCP for commerce,
+existing payment/intent protocols for their native domain, and standards-based HTTP signing rather than
+an Infinity protocol for every layer. Option A remains rejected as a product, but its strongest UX
+patterns are approved references: near-zero onboarding, plain-language rules, explicit approvals,
+pause/off-switch, clear activity and outcome-oriented presentation. Option B's passport/mandate remains
+a primitive inside Option C rather than the whole product.
+
+The founder explicitly deferred Gate A recruitment and the commerce pilot for now and authorized Kiro
+to continue building the right dependencies toward Option C. That means the evidence gates remain the
+future go-to-market test, not the immediate engineering gate. This is not permission for breadth: the
+stop list in §21.11 still applies.
+
+This approves the core Option C decision and the build-now timing amendment; it does **not** approve
+P2's five amendments and two corrections as one indivisible package. The supervisor should record this
+direct decision without treating every unmentioned P2 term as founder-approved.
+
+The first build is **safe agent-key rotation and recovery**, not the local signer. The current one-time
+`infsk_` handoff has no lifecycle, and a signer built on it would freeze the prototype's single-key
+assumption into the runtime interface. Key lifecycle establishes append-only key versions, current-key
+status, supersession, compromise recovery and historical credential semantics. The customer-controlled
+signer/sidecar is the next component and must consume that finished contract.
+
+This direct founder decision is relayed for the supervisor-owned record in
+`coordination/requests/20260930-2247-founder-option-c-build.md`. Until the supervisor updates P2 and
+`STATUS.md`, this subsection records the founder's instruction but does not edit the supervisor's
+proposal on Kiro's behalf.
+
+---
+
+## 22. Agent-key lifecycle design checkpoint, 2026-09-30
+
+> **Status: design complete; implementation intentionally not on `main`.** The interrupted draft is
+> preserved at remote branch `wip/agent-key-lifecycle-20260930`, commit `319018a`. It is incomplete,
+> unreviewed and must not be merged, applied, published or deployed as-is. `main` remains the safe
+> restart point.
+
+### 22.1 Why this precedes the signer
+
+The current agent has one immutable `agents.public_key`. The private `infsk_` value is shown once and
+has no importer, rotation, compromise or recovery contract. Building the Option C signer against that
+shape would make the prototype's unrecoverable single key part of the runtime API. Key lifecycle must
+therefore land first; the signer consumes it rather than forcing a later breaking migration.
+
+Agent-key rotation is independent of mandate reissue and Infinity issuer-key rotation:
+
+- **Agent ID** names the stable agent.
+- **Mandate version** names delegated authority.
+- **Agent-key version** names the authenticator currently allowed to exercise that authority.
+- **Credential revision** commits to the exact current combination plus owner evidence.
+- **Infinity issuer key** signs the credential and needs its own retained-public-key rotation policy.
+
+Changing an authenticator must not manufacture a mandate change or reset spend/history. Changing a
+mandate must not silently replace the authenticator.
+
+### 22.2 Non-negotiable invariants
+
+1. Key history is append-only; the pointer moves exactly `N → N+1` and never backward.
+2. `agents.public_key` remains a guarded current projection during migration, always equal to the
+   pointed immutable key row.
+3. A key fingerprint is SHA-256 of the canonical decoded 32-byte Ed25519 public key. A fingerprint may
+   control only one Agent ID and retired keys cannot be reused.
+4. Routine rotation requires all three: authenticated owner authorization, old-key continuity proof,
+   and new-key possession proof over the same short-lived transition material.
+5. Old-key proof alone can never transfer the Agent ID; a compromised agent key is not the owner.
+6. Recovery never claims continuity. It requires a recently verified interactive owner login plus
+   new-key possession, records `lost` or `compromised`, leaves the agent frozen, and sets a durable
+   recovery hold for the new key version.
+7. Ordinary owner unfreeze is rejected while a recovery hold exists. A service-controlled fresh proof
+   from the current recovered key clears the hold under the agent lock; the owner may unfreeze only
+   afterwards.
+8. Neither path sends, logs or stores PKCS#8 or any `infsk_` private material.
+9. Old credentials remain historical offline evidence. Their exact live status becomes superseded
+   after the current key pointer changes.
+10. A new credential identifies both mandate and key versions. Its JTI/status tuple is
+   `agent + mandate_version + key_version + credential_revision`.
+11. Pending approvals and new usage carry both authorizing versions. Key change supersedes old-key
+    approvals without resetting the agent-global spend ledger.
+12. An MCP proof verified just before rotation cannot be recorded or spent after cutover: the database
+    atomically rechecks the expected key version under the agent lock.
+13. Recovery activation, key-aware status and stale-key rejection become a rollback floor once any key
+    v2 exists.
+
+### 22.3 Planned rotation
+
+1. The owner opens **Rotate key** for a specific current key version/fingerprint.
+2. The future signer or a browser-local compatibility flow creates a new Ed25519 key; only its public
+   half leaves the device.
+3. One canonical transition binds Agent ID, request ID, expected version/fingerprint, new fingerprint,
+   routine disposition, reason digest and proof expiry.
+4. The old key signs a continuity domain; the new key signs a separate possession domain.
+5. The authenticated application verifies both signatures, then calls a service-role-only database
+   function. The browser can never call that function directly.
+6. The database locks the agent, checks ownership, capability, exact expected state, unused fingerprint,
+   proof metadata and durable request idempotency, appends vN+1, advances the guarded projection and
+   anchors the snapshot in activity evidence.
+7. The existing valid/frozen state is preserved. The new credential becomes current; the old one is
+   signed history with `usable: false`.
+
+The new-key signature proves that the private half exists. It does **not** prove which workload holds
+it. UI language is `Key possession proven`; `Runtime attached` requires platform-authenticated
+enrollment, workload attestation or recipient-enforced deployment evidence.
+
+### 22.4 Planned recovery
+
+Recovery exists for a lost or suspected-compromised agent key. It is not rotation with one signature
+removed:
+
+1. The owner freezes the agent or recovery freezes it atomically.
+2. The owner signs in interactively again. The server accepts only a strong authentication method and
+   timestamp inside a short window; token refresh alone is not reauthentication. Supabase documents
+   `aal`, `session_id` and timestamped `amr` methods in its
+   [JWT claims reference](https://supabase.com/docs/guides/auth/jwt-fields).
+3. A new key proves possession. No old-key signature is accepted or fabricated.
+4. The new row records `owner_recovery`, `continuity_proven: false`, and predecessor disposition
+   `lost` or `compromised`.
+5. The database sets a durable recovery hold bound to the new key version. The existing
+   `set_agent_status` path rejects `frozen → valid` while that hold exists.
+6. A service-only confirmation consumes a fresh challenge signed by the current recovered key, locks
+   the same agent row, and clears only the matching hold. Clearing the hold does not unfreeze the
+   agent; the owner makes that separate decision afterwards.
+
+If both the owner account and agent key are lost, this design provides no public-ID, security-question
+or support override. That requires a separate high-assurance account-recovery policy.
+
+Content was rephrased for compliance with licensing restrictions.
+
+### 22.5 Data and evidence shape
+
+The intended expansion adds:
+
+- `agents.current_key_version` plus a nullable recovery-hold key version;
+- owner-readable, append-only `agent_key_versions`;
+- private append-only `agent_key_change_requests` for idempotency and proof evidence;
+- `key_version` provenance on consumed challenges, agent-authored events, approvals and usage;
+- exact signed-material digest and signature scheme on new agent-authored events; and
+- disabled `agent_key_rotation` and `agent_key_recovery` capabilities.
+
+The event chain advances to a new canonical version for future rows and commits signer, signature,
+nonce, key version, signature scheme and signed-material digest. Historical chain values are never
+recomputed. UPDATE, DELETE and TRUNCATE guards still acknowledge the database-owner trust limit.
+
+The credential retains `credentialSubject.publicKey` for compatibility and adds a structured key block:
+version, Ed25519 algorithm, fingerprint, activation time, authorization method, continuity evidence and
+possession evidence. `iat`/`validFrom` use the latest signed-state activation time rather than pretending
+a newly rotated key existed when the mandate was first issued.
+
+### 22.6 Expansion, publication, activation
+
+Use the same expand-then-contract discipline as mandate lifecycle:
+
+1. **Preflight:** reject malformed/non-canonical current keys and duplicate fingerprints.
+2. **Expansion migration:** backfill exactly one key v1 per agent, add immutable history and key-aware
+   RPCs, keep old production RPCs compatible, and leave both capabilities disabled.
+3. **Post-apply database probes:** immediately verify live backfill counts, pointers/projection, grants,
+   RLS, append-only guards, helper ACLs, capabilities disabled and no v2 before any code relies on the
+   migration. Then regenerate committed types.
+4. **Application publication:** credential/status/Verify/MCP and owner UI understand key versions;
+   current v1 behavior and old status URLs remain safe while no v2 can exist.
+5. **Post-publish route probes:** verify revision/JTI/status behavior, stale-key/MCP race rejection,
+   old production compatibility, private-material absence, disabled change attempts and recovery-hold
+   UI/error behavior.
+6. **Activation migration:** only after both probe stages pass, drain writes, assert the key-aware
+   rollback floor, revoke legacy no-key-version privileged RPCs, require key provenance for every new
+   row, enforce recovery hold on every unfreeze path, then enable rotation and recovery last.
+7. **Post-activation acceptance:** routine v1→v2 rotation, old credential supersession, new proof,
+   approval/spend continuity, idempotent retry, conflict/forgery cases, then frozen recovery plus
+   service-controlled hold clearance on a disposable agent.
+
+### 22.7 Resume order
+
+When work resumes:
+
+1. Rebase nothing. Start from current `main`, inspect the WIP branch only as a draft, and re-review the
+   SQL from first principles before moving any part across.
+2. Finish the expansion migration and key-aware application as one reviewable unit.
+3. Add forgery, replay, concurrency, stale-key/MCP race, recovery-recent-auth and private-material tests.
+4. Run semantic review and all four quality gates.
+5. Push the expansion through the supervisor/Lovable migration apply → immediate database probe →
+   regenerate types → publish application → route/UI probe loop.
+6. Activate only in a separate migration after both probe stages pass.
+7. Build the local signer/sidecar against the live key-version contract.
+
+No partial key-lifecycle source or migration from the WIP branch is present on `main` at this checkpoint.
