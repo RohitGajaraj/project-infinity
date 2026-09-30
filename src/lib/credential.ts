@@ -25,8 +25,19 @@ export type AgentCredentialSubject = {
   name: string;
   /** Platform the agent runs on, self-declared by the owner. */
   source: string;
-  /** The agent's own Ed25519 signing key, `ed25519:<base64>`. */
+  /** Current agent Ed25519 key, retained as a compatibility alias. */
   publicKey: string;
+  key: {
+    version: number;
+    algorithm: "Ed25519";
+    fingerprint: string;
+    activatedAt: string;
+    authorizationMethod: "initial" | "legacy_import" | "old_key_proof" | "owner_recovery";
+    /** True only when the prior key signed the transition. */
+    continuityProven: boolean;
+    /** True only when the new key signed the transition material. */
+    possessionProven: boolean;
+  };
   owner: {
     /** Account-controlled display label. It is not extracted from identity evidence. */
     name: string;
@@ -98,6 +109,13 @@ export type CredentialSource = {
   mandate_version?: number;
   mandate_issued_at?: string;
   credential_revision?: string;
+  key_version?: number;
+  key_activated_at?: string;
+  key_fingerprint?: string;
+  key_authorization_method?: "initial" | "legacy_import" | "old_key_proof" | "owner_recovery";
+  key_continuity_proven?: boolean;
+  key_possession_proven?: boolean;
+  credential_state_issued_at?: string;
 };
 
 function toSeconds(iso: string): number {
@@ -115,8 +133,13 @@ export function buildCredentialPayload(
   const issuer = origin;
   const version = agent.mandate_version ?? 1;
   const mandateIssuedAt = agent.mandate_issued_at ?? agent.created_at;
-  const revision = agent.credential_revision ?? `legacy-v${version}`;
-  const iat = toSeconds(mandateIssuedAt);
+  const keyVersion = agent.key_version ?? 1;
+  const keyActivatedAt = agent.key_activated_at ?? agent.created_at;
+  const keyFingerprint = agent.key_fingerprint ?? "0".repeat(64);
+  const keyAuthorizationMethod = agent.key_authorization_method ?? "legacy_import";
+  const stateIssuedAt = agent.credential_state_issued_at ?? mandateIssuedAt;
+  const revision = agent.credential_revision ?? `legacy-m${version}-k${keyVersion}`;
+  const iat = toSeconds(stateIssuedAt);
   const mandateExp = toSeconds(agent.expires_at);
   const attestation = attestationFromRow(agent);
   const attestationExp = attestation.expiresAt ? toSeconds(attestation.expiresAt) : null;
@@ -129,6 +152,15 @@ export function buildCredentialPayload(
     name: agent.name,
     source: agent.source,
     publicKey: agent.public_key,
+    key: {
+      version: keyVersion,
+      algorithm: "Ed25519",
+      fingerprint: keyFingerprint,
+      activatedAt: keyActivatedAt,
+      authorizationMethod: keyAuthorizationMethod,
+      continuityProven: agent.key_continuity_proven === true,
+      possessionProven: agent.key_possession_proven === true,
+    },
     owner: {
       name: agent.owner_name ?? "Unnamed owner",
       nameSource: "self_declared",
@@ -147,7 +179,7 @@ export function buildCredentialPayload(
   return {
     iss: issuer,
     sub: agent.public_id,
-    jti: `${issuer}/credentials/${agent.public_id}/m${version}/${revision}`,
+    jti: `${issuer}/credentials/${agent.public_id}/m${version}/k${keyVersion}/${revision}`,
     iat,
     nbf: iat,
     exp,
@@ -160,7 +192,7 @@ export function buildCredentialPayload(
       validUntil: new Date(exp * 1000).toISOString(),
       credentialSubject: subject,
       credentialStatus: {
-        id: `${issuer}/api/public/status/${agent.public_id}?mandate_version=${version}&revision=${encodeURIComponent(revision)}`,
+        id: `${issuer}/api/public/status/${agent.public_id}?mandate_version=${version}&key_version=${keyVersion}&revision=${encodeURIComponent(revision)}`,
         type: "InfinityStatusEndpoint",
       },
     },

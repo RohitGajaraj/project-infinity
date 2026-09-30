@@ -29,11 +29,16 @@ const RecordInput = z.object({
 });
 
 export type RecordActionResult =
-  | { ok: true; eventId: number; hash: string }
+  | { ok: true; eventId: number; hash: string; keyVersion: number }
   | {
       ok: false;
       reason:
-        "unknown_or_unusable_agent" | "bad_signature" | "challenge_invalid_or_replayed" | "failed";
+        | "unknown_or_unusable_agent"
+        | "agent_key_lifecycle_unavailable"
+        | "bad_signature"
+        | "challenge_invalid_or_replayed"
+        | "key_version_conflict"
+        | "failed";
     };
 
 /**
@@ -45,31 +50,46 @@ export async function recordAgentSignedAction(input: unknown): Promise<RecordAct
   const parsed = RecordInput.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "bad_signature" };
   const data = parsed.data;
-  const { lookupAgent } = await import("./verify.server");
-  const { bodyHash, verifyProof } = await import("./pop");
+  const { lookupAgent, keyLifecycle } = await import("./verify.server");
+  const { bodyHash, canonicalProofString, verifyProof } = await import("./pop");
+  const { sha256Hex } = await import("./jws");
 
   const agent = await lookupAgent(data.publicId);
   if (!agent || agent.status !== "valid" || new Date(agent.expires_at).getTime() <= Date.now()) {
     return { ok: false, reason: "unknown_or_unusable_agent" };
   }
+  const key = keyLifecycle(agent);
+  if (!key) return { ok: false, reason: "agent_key_lifecycle_unavailable" };
 
-  const proof = await verifyProof(agent.public_key, data.signature, {
+  const proofParts = {
     nonce: data.nonce,
     method: data.method,
     url: data.url,
     bodySha256: await bodyHash(data.body),
-  });
+  };
+  const proof = await verifyProof(agent.public_key, data.signature, proofParts);
   if (!proof.ok) return { ok: false, reason: "bad_signature" };
 
   // Privileged write: the log function is service_role-only by design, so this
   // is one of the few places the admin client is correct rather than lazy.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: rows, error } = await supabaseAdmin.rpc("record_signed_action", {
+  const admin = supabaseAdmin as unknown as {
+    rpc(
+      name: string,
+      params: Record<string, unknown>,
+    ): Promise<{
+      data: Array<{ event_id: number; hash: string; key_version: number }> | null;
+      error: { code?: string; message: string } | null;
+    }>;
+  };
+  const { data: rows, error } = await admin.rpc("record_signed_action_v2", {
     _public_id: data.publicId,
     _nonce: data.nonce,
     _kind: data.kind,
     _detail: data.detail,
     _signature: data.signature,
+    _expected_key_version: key.version,
+    _signed_material_sha256: await sha256Hex(canonicalProofString(proofParts)),
   });
 
   if (error) {
@@ -79,7 +99,10 @@ export async function recordAgentSignedAction(input: unknown): Promise<RecordAct
     if (/unknown_or_unusable_agent/.test(error.message)) {
       return { ok: false, reason: "unknown_or_unusable_agent" };
     }
-    console.error("[actions] record_signed_action failed", {
+    if (/key_version_conflict/.test(error.message)) {
+      return { ok: false, reason: "key_version_conflict" };
+    }
+    console.error("[actions] record_signed_action_v2 failed", {
       code: error.code,
       message: error.message,
     });
@@ -88,7 +111,7 @@ export async function recordAgentSignedAction(input: unknown): Promise<RecordAct
 
   const row = rows?.[0];
   if (!row) return { ok: false, reason: "failed" };
-  return { ok: true, eventId: row.event_id, hash: row.hash };
+  return { ok: true, eventId: row.event_id, hash: row.hash, keyVersion: row.key_version };
 }
 
 export const recordSignedAction = createServerFn({ method: "POST" })

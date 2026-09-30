@@ -19,7 +19,7 @@ import {
   issuerOrigin,
   verifyMcpChallenge,
 } from "./issuer.server";
-import { lookupAgent, mandateLifecycle } from "./verify.server";
+import { keyLifecycle, lookupAgent, mandateLifecycle } from "./verify.server";
 import type { AgentView, McpContext } from "./mcp";
 
 export type AuthOutcome =
@@ -60,12 +60,13 @@ export async function authenticateAgent(request: Request): Promise<AuthOutcome> 
     };
   }
   const lifecycle = mandateLifecycle(agent);
-  if (!lifecycle) {
+  const key = keyLifecycle(agent);
+  if (!lifecycle || !key) {
     return {
       ok: false,
       status: 503,
-      error: "mandate_lifecycle_unavailable",
-      description: "Mandate versioning is unavailable. Do not rely on this agent yet.",
+      error: !lifecycle ? "mandate_lifecycle_unavailable" : "agent_key_lifecycle_unavailable",
+      description: "Versioned authority is unavailable. Do not rely on this agent yet.",
     };
   }
   if (agent.status !== "valid") {
@@ -89,7 +90,11 @@ export async function authenticateAgent(request: Request): Promise<AuthOutcome> 
 }
 
 /** Build the tool context for an authenticated agent. */
-export function buildContext(agentPublicId: string, requestUrl: string): McpContext {
+export function buildContext(
+  agentPublicId: string,
+  requestUrl: string,
+  authorizedKeyVersion?: number,
+): McpContext {
   const origin = issuerOrigin(requestUrl);
   return {
     agentPublicId,
@@ -98,7 +103,8 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
       const agent = await lookupAgent(publicId);
       if (!agent) return null;
       const lifecycle = mandateLifecycle(agent);
-      if (!lifecycle) throw new Error("mandate_lifecycle_unavailable");
+      const key = keyLifecycle(agent);
+      if (!lifecycle || !key) throw new Error("agent_authority_lifecycle_unavailable");
       return {
         public_id: agent.public_id,
         name: agent.name,
@@ -113,13 +119,18 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
         expires_at: agent.expires_at,
         mandate_version: lifecycle.version,
         mandate_issued_at: lifecycle.issuedAt,
+        key_version: key.version,
+        key_activated_at: key.activatedAt,
+        key_fingerprint: key.fingerprint,
         credential_revision: lifecycle.revision,
       };
     },
     issueCredential: async (publicId: string) => {
       const agent = await lookupAgent(publicId);
       if (!agent) throw new Error("unknown_agent");
-      if (!mandateLifecycle(agent)) throw new Error("mandate_lifecycle_unavailable");
+      if (!mandateLifecycle(agent) || !keyLifecycle(agent)) {
+        throw new Error("agent_authority_lifecycle_unavailable");
+      }
       return issueAgentCredential(agent, origin);
     },
 
@@ -129,8 +140,9 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
     },
 
     recordSpend: async (input) => {
+      if (!authorizedKeyVersion) throw new Error("key_bound_authorization_required");
       const { reserveSpend } = await import("./mandate.server");
-      const outcome = await reserveSpend(input);
+      const outcome = await reserveSpend({ ...input, expectedKeyVersion: authorizedKeyVersion });
       return {
         allowed: outcome.allowed,
         reason: outcome.reason,
@@ -139,10 +151,12 @@ export function buildContext(agentPublicId: string, requestUrl: string): McpCont
     },
 
     requestApproval: async (publicId, action, amountUsd) => {
+      if (!authorizedKeyVersion) throw new Error("key_bound_authorization_required");
       const { createApprovalRequest } = await import("./mandate.server");
       const handle = await createApprovalRequest({
         publicId,
         action,
+        expectedKeyVersion: authorizedKeyVersion,
         ...(amountUsd === undefined ? {} : { amountUsd }),
       });
       return { status: handle.status, reference: handle.reference, expiresAt: handle.expiresAt };
@@ -195,7 +209,7 @@ export function protectedMcpTool(message: {
 }
 
 export type McpAuthorizationOutcome =
-  | { ok: true }
+  | { ok: true; keyVersion: number }
   | {
       ok: false;
       reason:
@@ -203,16 +217,24 @@ export type McpAuthorizationOutcome =
         | "bad_signature"
         | "challenge_invalid_or_replayed"
         | "unknown_or_unusable_agent"
+        | "agent_key_lifecycle_unavailable"
+        | "key_version_conflict"
         | "failed";
     };
 
 type SignedActionFailure =
-  "unknown_or_unusable_agent" | "bad_signature" | "challenge_invalid_or_replayed" | "failed";
+  | "unknown_or_unusable_agent"
+  | "agent_key_lifecycle_unavailable"
+  | "bad_signature"
+  | "challenge_invalid_or_replayed"
+  | "key_version_conflict"
+  | "failed";
 
 type SignedActionRecorder = (
   input: unknown,
 ) => Promise<
-  { ok: true; eventId: number; hash: string } | { ok: false; reason: SignedActionFailure }
+  | { ok: true; eventId: number; hash: string; keyVersion: number }
+  | { ok: false; reason: SignedActionFailure }
 >;
 
 /**
@@ -249,5 +271,7 @@ export async function authorizeMcpToolCall(
     body: input.requestBody,
   });
 
-  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+  return result.ok
+    ? { ok: true, keyVersion: result.keyVersion }
+    : { ok: false, reason: result.reason };
 }

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lookupAgent, mandateLifecycle } from "@/lib/verify.server";
+import { lookupAgent, keyLifecycle, mandateLifecycle } from "@/lib/verify.server";
 import {
   issueAgentCredential,
   issuerMode,
@@ -38,9 +38,13 @@ export const Route = createFileRoute("/api/public/credential/$agentId")({
         }
 
         const lifecycle = mandateLifecycle(agent);
-        if (!lifecycle) {
+        const key = keyLifecycle(agent);
+        if (!lifecycle || !key) {
           return new Response(
-            JSON.stringify({ error: "mandate_lifecycle_unavailable", agent_id: id }),
+            JSON.stringify({
+              error: !lifecycle ? "mandate_lifecycle_unavailable" : "agent_key_lifecycle_unavailable",
+              agent_id: id,
+            }),
             { status: 503, headers: JSON_HEADERS },
           );
         }
@@ -69,9 +73,12 @@ export const Route = createFileRoute("/api/public/credential/$agentId")({
             agent_id: agent.public_id,
             status: agent.status,
             mandate_version: lifecycle.version,
+            key_version: key.version,
+            key_fingerprint: key.fingerprint,
+            key_authorization_method: key.authorizationMethod,
             credential_revision: lifecycle.revision,
             jwks_uri: `${origin}/.well-known/jwks.json`,
-            status_endpoint: `${origin}/api/public/status/${agent.public_id}?mandate_version=${lifecycle.version}&revision=${encodeURIComponent(lifecycle.revision)}`,
+            status_endpoint: `${origin}/api/public/status/${agent.public_id}?mandate_version=${lifecycle.version}&key_version=${key.version}&revision=${encodeURIComponent(lifecycle.revision)}`,
             key_mode: mode,
             provisional: isProvisional(mode),
             ...(isProvisional(mode) ? { warning: MODE_NOTE[mode] } : {}),

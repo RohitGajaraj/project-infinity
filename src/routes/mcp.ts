@@ -75,6 +75,7 @@ export const Route = createFileRoute("/mcp")({
           );
         }
 
+        let authorizedKeyVersion: number | undefined;
         const protectedTool = protectedMcpTool(message);
         if (protectedTool) {
           const authorization = await authorizeMcpToolCall({
@@ -103,9 +104,13 @@ export const Route = createFileRoute("/mcp")({
               },
             );
           }
+          authorizedKeyVersion = authorization.keyVersion;
         }
 
-        const response = await handleRpc(message, buildContext(auth.agentPublicId, request.url));
+        const response = await handleRpc(
+          message,
+          buildContext(auth.agentPublicId, request.url, authorizedKeyVersion),
+        );
 
         // A notification produces no reply; 202 is the correct answer.
         if (response === null) return new Response(null, { status: 202, headers: CORS });

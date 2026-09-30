@@ -267,6 +267,9 @@ export type AgentView = {
   expires_at: string;
   mandate_version?: number;
   mandate_issued_at?: string;
+  key_version?: number;
+  key_activated_at?: string;
+  key_fingerprint?: string;
   credential_revision?: string;
 };
 
@@ -315,6 +318,8 @@ function selfView(agent: AgentView, origin: string) {
     platform: agent.source,
     status: agent.status,
     mandate_version: agent.mandate_version ?? 1,
+    key_version: agent.key_version ?? 1,
+    key_fingerprint: agent.key_fingerprint,
     acting_for: {
       name: agent.owner_name ?? "Unnamed owner",
       name_source: "self_declared",

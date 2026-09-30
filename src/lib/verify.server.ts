@@ -6,6 +6,13 @@ export type VerifiedAgent = Database["public"]["Functions"]["verify_agent"]["Ret
   mandate_version?: number;
   mandate_issued_at?: string;
   credential_revision?: string;
+  key_version?: number;
+  key_activated_at?: string;
+  key_fingerprint?: string;
+  key_authorization_method?: string;
+  key_continuity_proven?: boolean;
+  key_possession_proven?: boolean;
+  credential_state_issued_at?: string;
 };
 
 /**
@@ -40,5 +47,43 @@ export function mandateLifecycle(agent: VerifiedAgent): {
     version: agent.mandate_version!,
     issuedAt: agent.mandate_issued_at,
     revision: agent.credential_revision,
+  };
+}
+
+export type AgentKeyLifecycle = {
+  version: number;
+  activatedAt: string;
+  fingerprint: string;
+  authorizationMethod: "initial" | "legacy_import" | "old_key_proof" | "owner_recovery";
+  continuityProven: boolean;
+  possessionProven: boolean;
+  stateIssuedAt: string;
+};
+
+export function keyLifecycle(agent: VerifiedAgent): AgentKeyLifecycle | null {
+  const method = agent.key_authorization_method;
+  if (
+    !Number.isInteger(agent.key_version) ||
+    (agent.key_version ?? 0) < 1 ||
+    typeof agent.key_activated_at !== "string" ||
+    !Number.isFinite(Date.parse(agent.key_activated_at)) ||
+    typeof agent.key_fingerprint !== "string" ||
+    !/^[0-9a-f]{64}$/.test(agent.key_fingerprint) ||
+    !["initial", "legacy_import", "old_key_proof", "owner_recovery"].includes(method ?? "") ||
+    typeof agent.key_continuity_proven !== "boolean" ||
+    typeof agent.key_possession_proven !== "boolean" ||
+    typeof agent.credential_state_issued_at !== "string" ||
+    !Number.isFinite(Date.parse(agent.credential_state_issued_at))
+  ) {
+    return null;
+  }
+  return {
+    version: agent.key_version!,
+    activatedAt: agent.key_activated_at,
+    fingerprint: agent.key_fingerprint,
+    authorizationMethod: method as AgentKeyLifecycle["authorizationMethod"],
+    continuityProven: agent.key_continuity_proven,
+    possessionProven: agent.key_possession_proven,
+    stateIssuedAt: agent.credential_state_issued_at,
   };
 }

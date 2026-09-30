@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { classifyCredentialStatus } from "@/lib/credential-status";
-import { lookupAgent, mandateLifecycle } from "@/lib/verify.server";
+import { lookupAgent, keyLifecycle, mandateLifecycle } from "@/lib/verify.server";
 
 /**
  * Version-aware live status. A signature proves what was issued; this endpoint
@@ -27,13 +27,14 @@ export const Route = createFileRoute("/api/public/status/$agentId")({
         }
 
         const lifecycle = mandateLifecycle(agent);
-        if (!lifecycle) {
+        const key = keyLifecycle(agent);
+        if (!lifecycle || !key) {
           return new Response(
             JSON.stringify({
               agent_id: id,
               status: "unavailable",
               usable: false,
-              error: "mandate_lifecycle_unavailable",
+              error: !lifecycle ? "mandate_lifecycle_unavailable" : "agent_key_lifecycle_unavailable",
               checked_at,
             }),
             { status: 503, headers },
@@ -42,14 +43,19 @@ export const Route = createFileRoute("/api/public/status/$agentId")({
 
         const url = new URL(request.url);
         const versionRaw = url.searchParams.get("mandate_version");
+        const keyVersionRaw = url.searchParams.get("key_version");
         const revision = url.searchParams.get("revision");
         const requestedVersion = versionRaw === null ? null : Number(versionRaw);
+        const requestedKeyVersion = keyVersionRaw === null ? null : Number(keyVersionRaw);
         const currentVersion = lifecycle.version;
+        const currentKeyVersion = key.version;
         const currentRevision = lifecycle.revision;
         const classified = classifyCredentialStatus({
           requestedVersion,
+          requestedKeyVersion,
           requestedRevision: revision,
           currentVersion,
+          currentKeyVersion,
           currentRevision,
           agentStatus: agent.status,
           expiresAt: agent.expires_at,
@@ -63,6 +69,9 @@ export const Route = createFileRoute("/api/public/status/$agentId")({
             credential_status: classified.credentialStatus,
             mandate_version: requestedVersion,
             current_mandate_version: currentVersion,
+            key_version: requestedKeyVersion,
+            current_key_version: currentKeyVersion,
+            current_key_fingerprint: key.fingerprint,
             revision,
             current_revision: currentRevision,
             usable: classified.usable,

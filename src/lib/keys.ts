@@ -3,6 +3,34 @@ function b64(buf: ArrayBuffer) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
 }
 
+function fromB64(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export async function importAgentSecret(secret: string): Promise<CryptoKey> {
+  if (!secret.startsWith("infsk_")) throw new Error("Agent keys start with infsk_.");
+  let bytes: Uint8Array;
+  try {
+    bytes = fromB64(secret.slice("infsk_".length));
+  } catch {
+    throw new Error("The agent key is not valid base64.");
+  }
+  try {
+    return await crypto.subtle.importKey(
+      "pkcs8",
+      bytes as unknown as BufferSource,
+      { name: "Ed25519" },
+      false,
+      ["sign"],
+    );
+  } catch {
+    throw new Error("The agent key is not a valid Ed25519 private key.");
+  }
+}
+
 export async function generateAgentKeys() {
   const pair = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, [
     "sign",

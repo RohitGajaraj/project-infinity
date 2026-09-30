@@ -2207,3 +2207,27 @@ consumer assistant. It is one customer-controlled external agent with its key ac
 egress constrained, one unrelated recipient enforcing the negotiated result, and the accountable/
 operator side paying because more legitimate actions complete safely. If that cannot be produced, the
 company thesis is not rescued by adding more features.
+
+### 21.14 Founder direction after review, 2026-09-30
+
+The founder directly accepted **Option C: horizontal trust runtime with one enforced wedge** and the
+standards posture in §21: MCP for tool/resource access, A2A for agent-to-agent tasks, UCP for commerce,
+existing payment/intent protocols for their native domain, and standards-based HTTP signing rather than
+an Infinity protocol for every layer. Option A remains rejected; the passport/mandate remains a
+primitive rather than the whole product.
+
+The founder explicitly deferred Gate A recruitment and the commerce pilot for now and authorized Kiro
+to continue building the right dependencies toward Option C. That means the evidence gates remain the
+future go-to-market test, not the immediate engineering gate. This is not permission for breadth: the
+stop list in §21.11 still applies.
+
+The first build is **safe agent-key rotation and recovery**, not the local signer. The current one-time
+`infsk_` handoff has no lifecycle, and a signer built on it would freeze the prototype's single-key
+assumption into the runtime interface. Key lifecycle establishes append-only key versions, current-key
+status, supersession, compromise recovery and historical credential semantics. The customer-controlled
+signer/sidecar is the next component and must consume that finished contract.
+
+This direct founder decision is relayed for the supervisor-owned record in
+`coordination/requests/20260930-2247-founder-option-c-build.md`. Until the supervisor updates P2 and
+`STATUS.md`, this subsection records the founder's instruction but does not edit the supervisor's
+proposal on Kiro's behalf.

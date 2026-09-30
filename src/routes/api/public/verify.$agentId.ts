@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { attestationFromRow } from "@/lib/identity";
-import { lookupAgent, mandateLifecycle } from "@/lib/verify.server";
+import { lookupAgent, keyLifecycle, mandateLifecycle } from "@/lib/verify.server";
 
 export const Route = createFileRoute("/api/public/verify/$agentId")({
   server: {
@@ -19,13 +19,14 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
             headers,
           });
         const lifecycle = mandateLifecycle(a);
-        if (!lifecycle) {
+        const key = keyLifecycle(a);
+        if (!lifecycle || !key) {
           return new Response(
             JSON.stringify({
               agent_id: id,
               status: "unavailable",
               usable: false,
-              error: "mandate_lifecycle_unavailable",
+              error: !lifecycle ? "mandate_lifecycle_unavailable" : "agent_key_lifecycle_unavailable",
             }),
             { status: 503, headers },
           );
@@ -50,11 +51,17 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
             monthly_spend_limit_usd: a.monthly_spend_limit,
             approval_above_usd: a.approval_above,
             public_key: a.public_key,
+            key_version: key.version,
+            key_activated_at: key.activatedAt,
+            key_fingerprint: key.fingerprint,
+            key_authorization_method: key.authorizationMethod,
+            key_continuity_proven: key.continuityProven,
+            key_possession_proven: key.possessionProven,
             mandate_version: lifecycle.version,
             mandate_issued_at: lifecycle.issuedAt,
             credential_revision: lifecycle.revision,
             agent_created_at: a.created_at,
-            issued_at: lifecycle.issuedAt,
+            issued_at: key.stateIssuedAt,
             expires_at: a.expires_at,
             log_head: a.last_hash,
           }),
