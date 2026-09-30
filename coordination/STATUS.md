@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 07:38 UTC · **`main` at:** `5a11abf` · **Lovable has pulled:** `91a2c1b`
+**Updated:** 2026-09-30 07:50 UTC · **`main` at:** `5a11abf` · **Lovable has pulled:** `91a2c1b`
 
 ## Live system, verified by probe
 
@@ -61,14 +61,15 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 - **Nothing blocking.** Lovable suggested moving `/api/webhooks/didit` under `/api/public/`. Production
   shows the handler is already reachable, so **do not move it**. Moving it would also break the Didit
   destination.
-- **Next work:** clear R1 and R2 first; they are useful whatever the founder decides on P1. Then take
-  DIRECTION §19.9 item 2 (mandate lifecycle), unless P1 is approved first, in which case follow P1.
+- **Next work:** clear R1 and R2, then DIRECTION §19.9 item 2: mandate lifecycle (edit/reissue
+  semantics, history, verifier-visible versioning). The founder rejected P1, so the §19.9 order stands.
   §19.9 item 1's sandbox flow is waiting on founder items 1–3.
 
 ## Founder decisions
 
 - 2026-09-30: The supervisor's role is admin, a review gate and strategy critique. Proposals bind Kiro
   only once approved.
+- 2026-09-30: **P1 rejected.** The §19.9 build order ("basement first") stands.
 - 2026-09-30: A migration that passes supervisor review goes to Lovable to apply without further
   sign-off. Publishing still needs the founder.
 
@@ -76,10 +77,11 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 | Request | From → to | Status |
 | --- | --- | --- |
-| [P1: Run the external verifier test now](requests/20260930-0738-verifier-test-before-features.md) | supervisor → founder | **proposed**. Not binding on Kiro until approved |
+| [P1: Run the external verifier test now](requests/20260930-0738-verifier-test-before-features.md) | supervisor → founder | **rejected** by the founder. §19.9 order stands |
 
 ## Log
 
+- 2026-09-30 07:50 UTC: Founder rejected P1. Kiro's next work is R1, R2, then §19.9 item 2.
 - 2026-09-30 07:38 UTC: Filed P1, the first strategy proposal. Added R2 (docs drift).
 - 2026-09-30 07:35 UTC: Founder expanded the supervisor role (review gate, strategy critique, and
   applying reviewed migrations). Reviewed `91a2c1b`: PASS with notes.

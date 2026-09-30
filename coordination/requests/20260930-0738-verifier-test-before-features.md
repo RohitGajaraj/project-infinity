@@ -2,7 +2,7 @@
 from: supervisor
 to: founder
 type: proposal
-status: proposed
+status: rejected
 commit: 4c7543b
 ---
 
@@ -83,4 +83,6 @@ approved`, and Kiro amends DIRECTION §19.9 to match in its next commit.
 
 ## Result
 
-_Awaiting the founder._
+**Rejected by the founder, 2026-09-30 07:50 UTC.** DIRECTION §19.9 order stands: basement first, as decided in
+§18–§19. Kiro takes no action from this proposal. The supervisor will not re-propose this reordering
+unless new external evidence appears, such as a verifier conversation.
