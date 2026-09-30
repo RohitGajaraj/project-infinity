@@ -1388,8 +1388,8 @@ The new flow is deliberately one screen and one hosted redirect:
 5. A raw webhook is authenticated with Didit's separate destination secret. Canonicalization depth is
    bounded before HMAC work so hostile unsigned JSON cannot exhaust the stack; after authentication,
    the body is recursively stripped of PII before semantic processing. Its event ID, provider
-   occurrence time, configured workflow ID, approved ID result, and approved liveness result are
-   checked before a verdict exists.
+   occurrence time, configured workflow ID, approved ID result, approved liveness result, and approved
+   face match are checked before a verdict exists.
 6. A service-role-only database function resolves the owner from the attempt/reference pair, applies
    provider lifecycle events in order, and inserts or revokes the attestation idempotently.
 7. The existing `verify_agent` resolver carries current standing into the public Verify page and the
@@ -1416,9 +1416,9 @@ inference smuggled into this field.
 ### 18.3 Assurance is earned from signed evidence
 
 An `Approved` session alone is not labelled high assurance. The authenticated webhook must name the
-configured immutable workflow and contain successful `id_verifications[]` and `liveness_checks[]`
-results. Missing or different evidence fails closed. This prevents a misconfigured email-only workflow
-from minting a government-ID-plus-liveness claim.
+configured immutable workflow and contain successful `id_verifications[]`, `liveness_checks[]`, and
+`face_matches[]` results. Missing or different evidence fails closed. This prevents a misconfigured
+email-only—or document-plus-unmatched-selfie—workflow from minting a government-ID-plus-liveness claim.
 
 Provider lifecycle remains live rather than frozen at first verdict. A dedicated structural event-ID
 ledger makes consecutive and non-consecutive retries idempotent; provider `created_at` orders distinct
@@ -1468,3 +1468,160 @@ and PII processing order.
 
 Database execution and a real Didit delivery remain intentionally unclaimed until Lovable applies the
 migration and the §18.5 deployment probe runs.
+
+---
+
+## 19. Architecture decision record: why Didit, and what Infinity must own, 2026-09-30
+
+**Status: accepted. Owner: founder. Revisit only when the exit criteria in §19.8 fire.**
+
+This section is the durable answer to: *if Infinity integrates Didit and other infrastructure, are we
+building a real product or merely assembling vendors?* The founder direction is explicit: build the
+strong agent-native basement first; MCP and other connectors come after the trust primitive exists.
+
+### 19.1 Decision in one sentence
+
+**Buy human/business evidence at the edge; own the agent accountability and authorization system.**
+
+Didit answers one narrow input question: *did the holder of this Infinity account complete the stated
+human or business evidence check?* Infinity answers the agent-native questions: *which agent is on the
+wire, does it hold its key, which account delegated to it, what may it do, is the mandate live, and did
+the owner approve this exact exception?*
+
+Didit is an optional root-evidence provider. It is not Infinity's credential issuer, policy engine,
+status authority, approval authority, product category, or customer-facing identity system.
+
+### 19.2 Why this capability is bought rather than built
+
+Government-document coverage, document-template updates, camera capture, liveness and presentation-
+attack detection, face matching, fraud operations, country coverage, and provider compliance are a
+specialized product and operating burden. Rebuilding them would:
+
+- move document images and extracted PII into Infinity's threat surface;
+- make us a KYC vendor rather than an agent-accountability company;
+- consume the team on country/document maintenance that does not improve agent acceptance;
+- weaken neutrality by making our own human-verification quality another self-issued claim; and
+- delay the agent-specific primitives no general KYC provider supplies.
+
+The build-versus-buy boundary is therefore structural, not temporary expedience.
+
+| Capability | Decision | Reason |
+| --- | --- | --- |
+| Document capture and OCR | Buy | Country/document maintenance; high PII exposure |
+| Liveness and face match | Buy | Specialist fraud models and attack research |
+| Human/KYB evidence verdict | Buy, provider-swappable | A root input, explicitly operator-asserted |
+| Agent key and proof of possession | **Own** | Identifies the software presenter, not the human |
+| Owner-to-agent delegation | **Own** | The accountability relationship is our product |
+| Signed mandate and policy semantics | **Own** | Says what the agent is pre-authorized to do |
+| Live status, expiry and revocation | **Own** | Lets the accountable account stop the agent |
+| Exact-action approval receipt | **Own** | Proves a human approved this exception |
+| Free verifier and conformance contract | **Own** | Creates acceptance on the scarce verifier side |
+| Protocol adapters (MCP/UCP/Web Bot Auth) | Integrate last | Distribution rails over the finished primitive |
+
+### 19.3 Why Didit is the first provider
+
+The first provider must prove the interface without creating enterprise-sales or geography lock-in.
+Didit currently offers the required shape: self-serve applications and scoped API keys, hosted sessions,
+visual KYC workflows, separate sandbox/live applications, an opaque `vendor_data` correlation field,
+and HMAC-signed V3 webhooks with retry-stable event IDs. Hosted capture keeps Infinity out of the
+document UI and lets the provider improve completion and fraud resistance independently.
+
+Selection is global-first. Didit was chosen for breadth, self-serve access, hosted flow, and absence of a
+required sales process—not for one country's depth and not because its brand is part of our product.
+Stripe Identity remains disqualified under the existing scope/terms decision. Persona and Sumsub remain
+credible replacements if they meet the same interface and commercial-access requirements.
+
+References: [Didit quick start](https://docs.didit.me/getting-started/quick-start),
+[application-scoped API keys](https://docs.didit.me/getting-started/api-authentication),
+[V3 webhook contract](https://docs.didit.me/integration/webhooks), and
+[sandbox model](https://docs.didit.me/integration/sandbox-testing). Content was rephrased for
+compliance with licensing restrictions.
+
+### 19.4 What Infinity's niche is
+
+Internally, Infinity is an **accountability and authorization certificate authority for autonomous
+agents**. Externally, never lead with that category language; lead with the result: a legitimate agent
+stops getting blocked because a counterparty can accept it safely.
+
+The minimum complete trust object binds five independently meaningful facts:
+
+1. **Agent subject** — a stable ID and agent-held Ed25519 public key.
+2. **Accountability anchor** — an account holder with explicit provider/method/assurance/date evidence.
+3. **Delegated mandate** — permissions, limits, approval threshold and validity window signed by
+   Infinity.
+4. **Live control** — current status, revocation, expiry and eventually safe key rotation.
+5. **Action evidence** — request-bound proof of possession and owner-signed receipts for exceptions.
+
+A Didit result alone contains none of facts 1, 3, 4 or 5 and does not create an agent identity. Infinity
+turns a narrow accountability input into an agent-native credential and live decision system that an
+unrelated business can verify for free.
+
+### 19.5 The anti-wrapper test
+
+Infinity has drifted into a wrapper if any of these become true:
+
+- the product is marketed as access to Didit or as a KYC dashboard;
+- replacing Didit changes the agent credential, mandate, verifier or public status protocol;
+- value is described as the count of integrated vendors rather than a completed trust decision;
+- customer PII or provider documents become Infinity's system of record;
+- a credential is considered complete merely because a provider returned `Approved`; or
+- connectors are built before key lifecycle, mandate lifecycle and approval evidence are sound.
+
+The positive test is: **if Didit disappeared tomorrow, every agent credential, key proof, mandate,
+revocation and verifier would continue to work; owner evidence would honestly fall back to “not
+checked” until another provider was connected.**
+
+### 19.6 Provider abstraction and portability rules
+
+- The generic attestation is `issuer + method + assurance + verifiedAt + operatorAsserted`; no
+  Didit-specific claim enters the credential contract.
+- Every verifier sees who checked what and chooses its own assurance floor.
+- The owner display name remains `self_declared`; this integration proves the account holder passed a
+  check, not that the label matches a document.
+- Provider payloads are authenticated first, stripped of PII at the boundary, and projected into a
+  narrow verdict. Raw payloads are never stored or logged.
+- Only opaque attempt, provider session, event IDs, coarse lifecycle state and the attestation are
+  persisted.
+- Provider reference-to-owner binding is resolved by the database; neither browser nor webhook accepts
+  an owner ID.
+- Provider replacement must be one adapter plus configuration, not a credential or product migration.
+- Standard SQL remains the source of truth so the data layer is portable beyond Lovable Cloud.
+
+### 19.7 Trust language that must never drift
+
+Didit does not independently sign Infinity's public credential. Infinity verifies a Didit webhook and
+then makes an **operator-asserted** claim. The credential must continue to say so. The verifier can
+independently verify Infinity's EdDSA signature and the agent's proof of possession; it cannot
+independently reconstruct the owner's document check from our narrow record.
+
+Likewise, a self-declared account label must never be displayed as a provider-verified legal name. If a
+future customer requires legal-name matching, add an explicit provider-backed *match result* with a
+separate privacy and retention decision; do not silently start storing extracted names.
+
+### 19.8 Exit criteria and provider review
+
+Do not add providers for logo count. Re-evaluate Didit or add a second provider only when at least one
+is true:
+
+- a required launch country/document is unsupported or materially underperforms;
+- business/KYB demand becomes a real customer requirement;
+- self-serve access, pricing, terms or reliability no longer fit the product;
+- the webhook cannot support the evidence, lifecycle or security guarantees in §18;
+- a provider can emit a directly verifiable signed attestation, reducing operator assertion;
+- concentration risk is blocking a paying customer; or
+- five real verifier conversations establish a materially different assurance requirement.
+
+At that point compare coverage, completion, fraud resistance, direct attestation verifiability,
+self-serve access, unit economics, data residency, deletion controls, webhook semantics and exit cost.
+Regional depth is a tie-breaker, never the primary decision.
+
+### 19.9 Build order after this decision
+
+1. Apply and live-probe the owner-accountability migration and one Didit sandbox flow.
+2. Complete mandate lifecycle: edit/reissue semantics, history and verifier-visible versioning.
+3. Build safe agent-key rotation/recovery without silently changing identity.
+4. Produce independently verifiable, action-bound owner approval receipts.
+5. Complete the external-business handshake milestone.
+6. Only then package the finished primitive into local MCP, UCP, Web Bot Auth and framework adapters.
+
+This order is binding until real verifier evidence changes it.

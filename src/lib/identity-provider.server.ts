@@ -212,7 +212,11 @@ function diditOutcome(status: string): VerificationOutcome {
 
 function hasApprovedKycEvidence(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  return featurePassed(value["id_verifications"]) && featurePassed(value["liveness_checks"]);
+  return (
+    featurePassed(value["id_verifications"]) &&
+    featurePassed(value["liveness_checks"]) &&
+    featurePassed(value["face_matches"])
+  );
 }
 
 function featurePassed(value: unknown): boolean {

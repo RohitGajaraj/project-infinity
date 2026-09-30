@@ -31,6 +31,7 @@ function payload(status = "Approved") {
         { status: "Approved", full_name: "Never Persist", document_number: "SECRET" },
       ],
       liveness_checks: [{ status: "Approved", selfie: "SECRET" }],
+      face_matches: [{ status: "Approved", similarity: 99.1 }],
     },
   };
 }
@@ -194,7 +195,13 @@ describe("Didit hosted identity flow", () => {
     for (const value of [
       { ...payload(), workflow_id: "wrong-workflow" },
       { ...payload(), decision: { id_verifications: [{ status: "Approved" }] } },
-      { ...payload(), decision: { liveness_checks: [{ status: "Approved" }] } },
+      {
+        ...payload(),
+        decision: {
+          id_verifications: [{ status: "Approved" }],
+          liveness_checks: [{ status: "Approved" }],
+        },
+      },
     ]) {
       const body = JSON.stringify(value);
       const signature = await hmac(canonicalJson(value));

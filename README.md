@@ -132,27 +132,104 @@ set `INFINITY_ISSUER_ORIGIN` to the canonical production origin. Derivation is d
 purpose — the edge runtime is multi-instance, so a random per-request key would sign credentials that
 fail against whichever instance served the key set.
 
-### Accountable-owner checks
+### Accountable-owner checks: Didit operator runbook
 
-The one owner-accountability screen uses a hosted Didit V3 workflow. Infinity sends only an opaque
-attempt UUID and stores only the provider reference, result, method, assurance, and validity dates.
-Documents, extracted personal fields, and raw webhooks are never stored. The account's displayed name
-remains explicitly self-declared; the provider attestation applies to the account holder and is never
-presented as proof of that label.
+#### Decision and ownership
 
-Set these only in Lovable's secret store—never in `.env`:
+Didit is a replaceable evidence provider, not Infinity's product. It hosts document capture, ID
+verification, liveness and face matching. Infinity owns the agent key, owner-to-agent delegation,
+signed mandate, live status, proof of possession and approval evidence. The full rationale and exit
+criteria are in `DIRECTION.md` §19.
 
-- `DIDIT_API_KEY`
-- `DIDIT_WEBHOOK_SECRET` (the destination's separate `secret_shared_key`)
-- `DIDIT_WORKFLOW_ID` (a KYC workflow containing government ID and liveness; the signed webhook
-  must match this ID and report both checks approved before Infinity records high assurance)
-- `DIDIT_ENVIRONMENT=sandbox` only on a sandbox deployment; omitted means `live`
+The account's displayed name remains explicitly self-declared. A successful provider result means the
+holder of the Infinity account completed the stated check; it does not prove that the displayed label
+matches a document. Infinity stores only opaque attempt/session/event identifiers and the narrow
+provider/method/assurance/date result—never document media, extracted personal fields or raw webhooks.
 
-Configure the Didit destination to send `status.updated` to
-`https://<canonical-origin>/api/webhooks/didit` using webhook version V3. The implementation verifies
-`X-Signature-V2` over canonical JSON, with exact raw-body `X-Signature` as a fallback. See the
-[official webhook contract](https://docs.didit.me/integration/webhooks). Content was rephrased for
-compliance with licensing restrictions.
+#### Should the founder sign up, or use the registration API?
+
+**Sign up through the [Didit Business Console](https://business.didit.me) for the first organization.**
+Use a founder-controlled company email and recovery path. The browser console is the right first setup
+because the founder must own the organization, applications, billing, workflow review, webhook
+destination and secret rotation.
+
+Didit also supports a two-call [programmatic registration flow](https://docs.didit.me/integration/programmatic-registration),
+but it still creates an account, organization and application after email-code verification. Reserve
+that path for later automation; it is not a substitute for organizational ownership. Never paste a
+Didit password, API key or webhook secret into this repository or chat.
+
+#### Sandbox setup—do this first
+
+1. **Create a sandbox Application.** In the Didit organization, create/select an Application whose
+   mode is **Sandbox**. Applications have separate scoped API keys; sandbox and live must not share
+   credentials. Copy the sandbox API key for the secret-store step below.
+2. **Create and publish one person/KYC workflow.** In **Workflows → Create New**, choose a Simple KYC
+   workflow and require all three evidence blocks:
+   - ID Verification / document check
+   - Liveness Detection
+   - Face Match between the live person and document portrait
+
+   Copy the published workflow UUID. Infinity refuses to record high assurance unless the signed V3
+   webhook matches this exact UUID and reports approved `id_verifications[]`, `liveness_checks[]`, and
+   `face_matches[]` results.
+3. **Create a V3 webhook destination.** In the Application's **API & Webhooks / Integrate** area, add:
+   - URL: `https://<your-public-infinity-origin>/api/webhooks/didit`
+   - Webhook version: **V3**
+   - Subscribed event: **`status.updated`**
+   - Enabled: yes
+
+   Save the destination's `secret_shared_key` when Didit shows it. This is the webhook secret and is
+   different from the API key.
+4. **Set Lovable secrets.** Paste values directly into Lovable's secret store—not `.env`, a commit, or
+   chat:
+
+   ```text
+   DIDIT_API_KEY=<sandbox Application API key>
+   DIDIT_WEBHOOK_SECRET=<destination secret_shared_key>
+   DIDIT_WORKFLOW_ID=<published KYC workflow UUID>
+   DIDIT_ENVIRONMENT=sandbox
+   ```
+
+   Also ensure `INFINITY_ISSUER_ORIGIN` is the same public HTTPS origin used in the destination URL,
+   because Didit redirects the browser back to `/agents?identity=returned` on that origin.
+5. **Apply the database migration before testing the UI.** Lovable must apply
+   `supabase/migrations/20260930040000_owner_identity_flow.sql`, then regenerate its database types.
+6. **Test destination authentication.** Use Didit's **Try Webhook** action. Infinity should return 2xx
+   for the signed test delivery but must not create an attestation from it.
+7. **Run one real sandbox journey through Infinity.** Sign in to Infinity, open **Your agents**, and
+   click **Check accountable owner**. Complete the hosted flow with Didit's sandbox **sample documents**
+   and an approval scenario. Do not upload a real ID to sandbox: Didit mocks extraction and decisions,
+   but its documentation says captured sandbox media is still stored.
+8. **Confirm the evidence chain.** The console card should become **Attested** and name Didit, the
+   method and high assurance. Open one agent's public Verify page and fetch a fresh credential; both
+   must show the operator-asserted attestation while keeping the display name marked self-declared.
+9. **Run the live repository probe.** With the migrated database and deployed app available, run
+   `bun run e2e`. It checks RLS, auth-derived attempt ownership, duplicate start/bind idempotency,
+   finalizer denial for public roles and the superseded recorder lockout.
+
+Didit's [quick start](https://docs.didit.me/getting-started/quick-start) recommends hosted sessions;
+[API authentication](https://docs.didit.me/getting-started/api-authentication) documents per-Application
+keys; the [webhook contract](https://docs.didit.me/integration/webhooks) defines V3 signatures and
+`status.updated`; and [sandbox testing](https://docs.didit.me/integration/sandbox-testing) documents
+separate applications, scenarios and media handling. Content was rephrased for compliance with
+licensing restrictions.
+
+#### Promote to production only after sandbox passes
+
+Create a **separate Live Application** in Didit. Recreate/publish the reviewed workflow and webhook
+destination there, then replace the three Didit secrets with the live Application values and remove
+`DIDIT_ENVIRONMENT=sandbox` (unset means `live`). Do not reuse sandbox API keys, workflow IDs or webhook
+secrets. Before a real person relies on the credential, also complete the production issuer-key setup
+in the preceding section.
+
+Expected failure signals are deliberate:
+
+- **Identity checks not configured** — one or more Didit secrets is absent.
+- **Webhook 401** — signature, timestamp, environment or payload structure failed closed.
+- **Webhook 409** — the opaque attempt and provider session do not match, or assurance evidence is
+  inconsistent.
+- **Check remains in progress** — the provider has not sent an accepted terminal `status.updated`
+  event; inspect Didit's destination delivery log without copying payload PII into project logs.
 
 Hosting and deploys are managed by [Lovable](https://lovable.dev/projects/a72c22cc-c399-46a1-ae47-ed7543f69c3a).
 Pushes to `main` sync into the Lovable editor, so keep the branch working and never rewrite pushed history.
