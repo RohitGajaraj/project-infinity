@@ -79,3 +79,11 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 - **An attestation is operator-asserted and must always say so.** It carries issuer, method, assurance and date, plus `operatorAsserted: true`. A bare `verified` boolean is unfalsifiable, and a verifier must never be led to think it checked this claim itself. Same discipline as signing versus hash-chaining.
 - **A provider verdict alone does not make an owner verified.** `verify_agent` derives standing from a live, unrevoked, unexpired attestation, so a lapsed check stops reading as verified with no backfill.
 - **PII stripping is implemented, not asserted.** Provider webhooks carry extracted personal data by default; `stripPii` redacts it at the boundary before anything is logged or stored, matching on normalised field names so camelCase variants cannot slip through.
+
+## Coordination: Kiro, supervisor, Lovable (protocol: `coordination/README.md`, 2026-09-30)
+
+- **Git `main` is the only channel the three share.** Kiro builds and pushes; Lovable pulls, applies and publishes; a Claude Code supervisor holding the Lovable MCP relays between them, because Kiro and Lovable have no connection of their own.
+- **Read `coordination/STATUS.md` before starting work.** It is the supervisor's verified view of the live system, so it is the only place that says a migration is actually live.
+- **Anything that is not a migration goes in `coordination/requests/`** (secret, publish, Lovable task, question, decision). A commit subject can carry only one signal, and requests need a trackable status.
+- **The supervisor owns `STATUS.md` and each request's `## Result`; Lovable edits nothing under `coordination/`.** Three writers on one branch conflict unless each file has a single owner.
+- **The supervisor verifies by live probe, not by Lovable's report.** Lovable's "applied exactly as written" and Kiro's "the server validates first" are both claims until checked.
