@@ -1776,3 +1776,32 @@ full snapshot chain anchoring and TRUNCATE guards.
 This is source readiness, not live completion. `coordination/STATUS.md` and the open mandate expansion
 request own the apply/publish/probe truth. Reissue remains capability-disabled until a later reviewed
 activation migration.
+
+### 20.8 Post-publish evidence and activation contract
+
+The version-aware application was published and the supervisor's read-only probes proved current,
+legacy and superseded credential-status behavior plus v1 allowance reporting. Kiro then ran the live
+write path against production: the complete phase-1 e2e passed, a $10 reservation was tagged to mandate
+v1, and the test agent ended frozen. A separate authenticated old-client probe proved direct insert
+still created v1 atomically and direct status PATCH still froze the agent without changing its mandate.
+Finally, the real owner console attempted to activate v2 and surfaced the capability-disabled message
+while history remained at v1. Kiro-reported production write evidence is recorded, pending supervisor
+corroboration, in request
+`coordination/requests/20260930-1750-mandate-lifecycle-activation.md`.
+
+`20260930060000_activate_mandate_lifecycle.sql` is the matching **contract migration**. In one
+transaction it drains legacy writes, removes authenticated direct INSERT/UPDATE/DELETE and their write
+policies, closes R9's internal-function grants, optimizes the owner-history policy, adds an
+accidental-TRUNCATE guard to the hash-chained log, and flips `mandate_reissue` only as its final state
+change. It deliberately retains the projection guard, initial-v1 trigger, activity logging and
+immutable-history triggers because the RPC lifecycle depends on them. Reissue remains service-role-only;
+owners reach it only through the authenticated application boundary.
+
+R7—agents outliving a deleted owner account—is a real trust gap but not safe to hide inside activation.
+A durable fix introduces a terminal `revoked` state and preserves owner evidence instead of cascading
+it away. The currently published console and MCP paths treat every non-valid state as a reversible
+freeze, so database-first revocation would be fail-closed but materially misdescribed. The rollout is:
+first publish revoked-aware status, verifier, MCP and console behavior; then migrate auth deletion to
+revoke every valid or frozen agent, revoke attestations, close open identity attempts, retain immutable
+history, and probe a disposable owner deletion. This keeps activation reviewable without accepting R7
+as permanent debt.
