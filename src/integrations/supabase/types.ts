@@ -288,6 +288,77 @@ export type Database = {
         }
         Relationships: []
       }
+      owner_identity_events: {
+        Row: {
+          event_id: string
+          occurred_at: string
+          outcome: string
+          processed_at: string
+          session_id: string
+        }
+        Insert: {
+          event_id: string
+          occurred_at: string
+          outcome: string
+          processed_at?: string
+          session_id: string
+        }
+        Update: {
+          event_id?: string
+          occurred_at?: string
+          outcome?: string
+          processed_at?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_identity_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "owner_identity_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_identity_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          issuer: string
+          last_event_at: string | null
+          last_event_id: string
+          owner_id: string
+          provider_reference: string
+          state: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issuer: string
+          last_event_at?: string | null
+          last_event_id?: string
+          owner_id: string
+          provider_reference?: string
+          state?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issuer?: string
+          last_event_at?: string | null
+          last_event_id?: string
+          owner_id?: string
+          provider_reference?: string
+          state?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -338,6 +409,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      abandon_owner_identity_session: {
+        Args: { _attempt_id: string }
+        Returns: boolean
+      }
       agent_allowance: {
         Args: { _public_id: string }
         Returns: {
@@ -359,6 +434,18 @@ export type Database = {
           expires_at: string
           status: string
         }[]
+      }
+      begin_owner_identity_session: {
+        Args: { _issuer: string }
+        Returns: {
+          attempt_id: string
+          can_start: boolean
+          expires_at: string
+        }[]
+      }
+      bind_owner_identity_session: {
+        Args: { _attempt_id: string; _provider_reference: string }
+        Returns: boolean
       }
       create_approval_request: {
         Args: { _action: string; _amount_usd: number; _public_id: string }
@@ -384,12 +471,41 @@ export type Database = {
           status: string
         }[]
       }
+      finalize_owner_identity_session: {
+        Args: {
+          _assurance: string
+          _attempt_id: string
+          _event_id: string
+          _issuer: string
+          _method: string
+          _occurred_at: string
+          _outcome: string
+          _provider_reference: string
+          _subject_country?: string
+        }
+        Returns: {
+          attestation_id: number
+          state: string
+        }[]
+      }
       gen_agent_public_id: { Args: never; Returns: string }
       issue_agent_challenge: {
         Args: { _public_id: string; _purpose?: string }
         Returns: {
           expires_at: string
           nonce: string
+        }[]
+      }
+      owner_identity_status: {
+        Args: never
+        Returns: {
+          assurance: string
+          attestation_expires_at: string
+          issuer: string
+          method: string
+          state: string
+          updated_at: string
+          verified_at: string
         }[]
       }
       record_owner_attestation: {
