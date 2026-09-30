@@ -85,6 +85,13 @@
       "when": 1790768818903,
       "tag": "0011_mandate_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790773300343,
+      "tag": "0012_activate_mandate_lifecycle",
+      "breakpoints": true
     }
   ]
 }
