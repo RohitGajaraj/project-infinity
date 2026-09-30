@@ -1805,3 +1805,405 @@ first publish revoked-aware status, verifier, MCP and console behavior; then mig
 revoke every valid or frozen agent, revoke attestations, close open identity attempts, retain immutable
 history, and probe a disposable owner deletion. This keeps activation reviewable without accepting R7
 as permanent debt.
+
+---
+
+## 21. Strategy audit: horizontal trust runtime, enforced wedge, 2026-09-30
+
+> **Status: Kiro analysis, nonbinding.** This section answers the founder's request to stop building
+> long enough to test whether Infinity is becoming the right product. Kiro has routed it to the
+> supervisor as `coordination/requests/20260930-1904-strategy-decision.md`. It changes §13 or §19.9
+> only if the supervisor files a valid proposal and `coordination/STATUS.md` records founder approval.
+
+### 21.1 The direct answer
+
+**Do not build a combined Muse, Instinct, Dots and Wajo competitor. Do not stop at an agent passport
+website either. Build the horizontal accountability runtime those agents can pass through—but earn the
+right to call it infrastructure by making it control one real, enforced action first.**
+
+The target product sentence—not a claim about the current build—is:
+
+> **Infinity lets an agent present cryptographic evidence of which evidenced account delegated its
+> authority, what the current scope is, and whether the delegation is still live, using a mechanism
+> negotiated with the receiving service.**
+
+The target external outcome remains: **legitimate agents stop getting blocked because an integrated
+recipient has better evidence than a claim from the agent's maker.** This does not yet establish a
+legal identity, liability, or universal acceptance. Internally, the target combines a credential
+issuer, policy control plane and signing runtime. Externally, never lead with those nouns.
+
+The Vercel/Supabase analogy has one non-negotiable implication. Vercel is infrastructure because the
+application actually deploys through it. Supabase is infrastructure because application state actually
+passes through it. Infinity is infrastructure only when an agent's outbound action passes through an
+enforced signing/policy boundary and the recipient uses that evidence to allow or deny. A credential
+card that neither side must use is a badge, not infrastructure.
+
+### 21.2 What we have actually built
+
+The last build cycle was basement work, which is why product progress has looked less visible than the
+engineering effort:
+
+| Built primitive | Real job it performs | Current limitation |
+| --- | --- | --- |
+| VC-JWT + JWKS | Infinity-signed, offline-verifiable agent mandate | Production issuer key remains provisional |
+| Agent Ed25519 key + proof | Proves the presenter holds the key named in the credential | Key is copied manually; no supported runtime signer |
+| Owner evidence | Anchors the agent to an account holder who completed a named check | Sandbox-proven, operator-asserted; display name remains self-declared |
+| Immutable mandate versions | Makes changed authority supersede old credentials without resetting history | No external executor is obliged to enforce most permissions |
+| Live status + freeze | Publishes a fail-closed stop signal for integrated recipients | Recipients must recheck within their accepted staleness window; R7 remains open |
+| Spend/approval ledger | Enforces Infinity's own reservation cap and one-use approvals | It is not connected to money movement or a portable signed owner receipt |
+| MCP + public APIs | Gives machines a real interface to read and exercise the primitives | Static MCP clients cannot produce the required dynamic signatures |
+| Verify + conformance vector | Lets a developer verify issuer signature, possession and status | No unrelated business has completed the target handshake in its codebase |
+
+This is substantial and reusable. It is also not yet a product loop. Today “Claude Code,” “ChatGPT,”
+“Instinct,” “Muse,” and “Custom/API” on Add Agent are self-declared source labels. Selecting one does
+not discover, authenticate, connect or install anything in that runtime. The owner receives a raw
+`infsk_` value and must invent the key import and signing middleware. The receiving business must also
+invent its verifier integration. The gap between those two unfinished edges is why the platform still
+looks like a console instead of horizontal infrastructure.
+
+### 21.3 Option A: build the full consumer agent platform — reject
+
+Muse, Instinct, Wajo's Fo and OpenAI Dots are **agent operators**. They own the model/runtime, cloud
+computer, browser, memory, app connectors, task loop and user-facing assistant:
+
+- [Meta Muse](https://about.fb.com/news/2026/09/introducing-muse-personal-ai-agent/) runs in a dedicated
+  secure VM, uses a separate sentinel before internet actions, stores connected credentials outside
+  model visibility, asks for sensitive-action approval and integrates payment wallets.
+- [Instinct](https://instinct.com/) is deliberately reached by text or call and operates a phone and
+  computer like a human assistant.
+- [Wajo](https://wajo.ai/) sells completed outcomes, proactive execution and human collaboration when
+  its agent cannot finish.
+- [OpenAI Dots](https://help.openai.com/en/articles/20001530-getting-started-with-your-dot) combines an
+  always-on cloud computer, connected apps, memory, schedules, custom action rules, pause and reset.
+
+Building their combination means building a frontier-agent company: model behavior, computer use,
+connectors, memory, task reliability, human fallback, payments, support and consumer distribution. It
+would put Infinity against Meta/OpenAI and heavily funded operators on their strongest ground, make a
+better model a substitute rather than a complement, destroy issuer neutrality, and recreate the broad
+platform failure documented in §1.
+
+**What to copy from them:** near-zero onboarding, rules ordinary people understand, explicit approval,
+pause/off-switch, clear activity, and outcomes rather than protocol language.
+
+**What not to copy:** the model, planner, memory, browser VM, connector catalog, assistant surface,
+human concierge or consumer task marketplace.
+
+### 21.4 Option B: stay a pure passport/credential issuer — necessary, insufficient
+
+This option matches much of the current implementation but is not a defensible company on its own.
+The core category is now occupied:
+
+- [DigiCert AI Trust Manager](https://docs.digicert.com/en/ai-trust-manager/manage-and-secure-your-ai-agent-ecosystem/secure-your-ai-agents/issue-security-passports-to-ai-agents.html)
+  assigns agent passports containing identity, capabilities, permissions and constraints. Its
+  [policy enforcement points](https://docs.digicert.com/en/ai-trust-manager/discover-and-onboard-external-agents/register-policy-enforcement-points.html)
+  also overlap the runtime-enforcement target, not just the passport screen.
+- [Proof x401](https://www.proof.com/x401) directly targets the verified-human delegation gap with
+  OpenID4VP, queryable credential requirements, signed scope and action-bound presentation. Proof
+  reports 8,000+ relying parties for its identity network; its own x401 page says formal adopter
+  announcements are still forthcoming, so that is distribution potential rather than proven x401
+  acceptance.
+- [Okta for AI Agents](https://www.okta.com/en-gb/blog/ai/okta-for-ai-agents-general-availability/)
+  reports discovery, scoped connections, lifecycle controls and deactivation across frameworks,
+  clouds, SaaS and MCP, and has announced a hosted agent-traffic gateway direction.
+- [NewCore](https://newcore.com/) describes a converged IdP for human, machine, delegated and
+  autonomous identities. These are vendor-reported product claims, not independent adoption evidence.
+
+Infinity's technical choices are sound, but Ed25519, JWT credentials, status endpoints and a polished
+passport are reproducible. Neutrality is not earned merely by being independent; it requires accepted
+governance, reliable operations and recipients that recognize the evidence. Proof is the most direct
+strategic threat to evidenced human delegation. DigiCert overlaps passports, policy and enforcement;
+Okta/NewCore own enterprise distribution. Infinity has not yet proved a boundary those products cannot
+serve.
+
+Therefore keep Infinity's issuer as the default implementation, but do not bet the company on being
+the only issuer. Where a customer already uses a credible principal credential, reference it instead of
+forcing replacement. The narrow layer worth testing is: independently described account evidence
+bound to an agent-held key, an exact current delegation revision, and a live revocation signal that can
+travel across rails. Commerce-specific intent, payment mandates and receipts should remain in AP2,
+TAP, x401 or the selected rail rather than being duplicated by Infinity.
+
+### 21.5 Option C: horizontal architecture, narrow enforced wedge — recommend
+
+The product has three pieces, delivered as one system:
+
+#### A. Agent Trust Runtime
+
+A small SDK/sidecar/egress proxy for customer-controlled runtimes. It:
+
+- generates or binds the agent key inside the runtime, device or customer KMS;
+- proves possession during enrollment without sending the private key to Infinity;
+- retrieves the current credential and delegation state;
+- obtains owner approval when the selected external protocol requires it;
+- signs the actual outbound request; and
+- emits the one protocol profile negotiated with the pilot recipient.
+
+This is the missing “install Infinity” product for custom agents and cooperating platforms. For an
+individual it can be a local process launched by one command. For a platform it is a library or egress
+service using customer-managed keys. The model should not see raw key material. **It is enforceable
+only when the operator routes the selected traffic through this signer and blocks alternate egress.**
+Every pilot must document that bypass threat model; a voluntary SDK call is not a control.
+
+#### B. Accountability Control Plane
+
+The existing console and backend become the control plane, not the destination:
+
+- evidence about the delegating account, with issuer/method/assurance stated precisely;
+- agent/fleet registry and delegation relationship;
+- safe key rotation, recovery and compromise handling;
+- immutable, versioned delegations and live status;
+- human decisions for exceptions where the external rail does not already own that flow;
+- evidence/status references for protocol-native receipts; and
+- audit export and lifecycle webhooks.
+
+This is where current work belongs. It should not grow a model, memory, browser, generic connector
+catalog, KYC document workflow or payment network.
+
+#### C. Free Verifier Edge
+
+One package or edge rule verifies issuer, agent possession, exact mandate/revision and current status,
+then returns a small policy result. It requires no Infinity account, API key, fee or mandatory callback
+except live status. The recipient chooses the issuer and assurance it accepts.
+
+The first target API should look conceptually like:
+
+```ts
+const decision = await verifyAgentRequest(request, {
+  action: "commerce.checkout",
+  maxAmountUsd: 200,
+  acceptedIssuers: ["https://infinity.example"],
+});
+
+if (!decision.allowed) return decision.response;
+```
+
+The exact contract must follow the chosen standard rather than inventing a permanent Infinity-only
+header set.
+
+### 21.6 Ride protocols; do not become another protocol
+
+The ecosystem is separating into layers:
+
+| Layer | Existing rail | Infinity's bounded role |
+| --- | --- | --- |
+| Tool/resource access | [MCP authorization](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) | Use OAuth discovery/scopes for MCP access; do not confuse it with external agent delegation |
+| Agent-to-agent tasks | [A2A](https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/) | Reference verifiable delegation only through an extension both agents explicitly support |
+| Commerce flow | [UCP](https://www.shopify.com/news/ai-commerce-at-scale) and [profile negotiation](https://shopify.dev/docs/agents/profiles) | Define an Infinity capability only with a committed merchant; unsupported capabilities are not adoption |
+| Payment intent and receipt | [Google's AP2 overview](https://developers.googleblog.com/en/developers-guide-to-ai-agent-protocols/) and [FIDO agentic work](https://fidoalliance.org/fido-alliance-agentic-ai/) | Supply evidenced principal/key/current-revocation context; reference protocol-native mandate and receipt semantics |
+| Merchant agent recognition | [Visa Trusted Agent Protocol](https://developer.visa.com/use-cases/trusted-agent-protocol) | Interoperate where a customer uses TAP; do not duplicate its agent, intent or transaction binding |
+| HTTP agent provenance | [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421.html) + [Web Bot Auth](https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth/) | Candidate first signing profile; Web Bot Auth identifies registered bot/operator traffic and does not consume an Infinity mandate by default |
+| Human credential presentation | [Proof x401](https://www.proof.com/x401) / OpenID4VP | Support or partner on customer demand; do not invent another identity-presentation transport |
+| Fine-grained policy | OAuth/OIDC and AuthZEN | Feed verified delegation context into the customer's existing decision point rather than replacing its policy engine |
+
+MCP connects an agent to tools; A2A connects agents to agents; UCP describes commerce; AP2 and TAP
+already occupy significant parts of intent, guardrails, transaction binding and receipts; Web Bot Auth
+identifies signed operator traffic. The remaining hypothesis is narrower: whether recipients value an
+independently described delegating account, agent-key binding and one live cross-rail revocation signal
+enough to integrate it. Proof x401 targets much of that chain, while DigiCert already exposes runtime
+policy enforcement. The pilot must discover a customer-specific reason those products are insufficient
+or Infinity has no wedge.
+
+Using a familiar transport or extension mechanism reduces custom plumbing; it does **not** remove the
+bilateral adoption cost. UCP participants must negotiate the capability, Web Bot Auth requires bot/key
+directory registration, and Infinity-specific evidence still needs a recipient policy. No section may
+say a recipient “already accepts” Infinity until that exact integration is live.
+
+The [OpenID Foundation](https://openid.net/lets-discuss-identity-management-in-ai/) and
+[NIST NCCoE](https://www.nccoe.nist.gov/projects/software-and-ai-agent-identity-and-authorization)
+continue to treat delegated authority, agent authentication, propagation, discovery and governance as
+an integration problem across existing identity standards. That supports standards participation and
+conformance work, not a proprietary Infinity protocol.
+
+Content was rephrased for compliance with licensing restrictions. Links provide attribution to the
+source claims; they do not grant permission to reuse source schemas or code. Verify each artifact's
+actual license before implementation.
+
+### 21.7 How a real external agent joins—no platform-label fiction
+
+A source dropdown is not onboarding. The target lifecycle is:
+
+1. **Accountable party enrolls.** An individual or organization authenticates and supplies the
+   evidence appropriate to the risk. Infinity records exactly what was checked, not a generic
+   “verified” bit.
+2. **Runtime starts enrollment.** The platform calls the fleet API or the owner runs a CLI/device flow.
+   Infinity returns a short-lived, one-use enrollment challenge—not a long-lived agent secret.
+3. **Key is born where the agent runs.** The sidecar, workload identity or customer KMS creates an
+   Ed25519 key. Only the public key and possession proof leave that boundary.
+4. **Owner grants the mandate.** The owner reviews scope, ceilings, approval rules, recipient/domain
+   restrictions and expiry. Infinity issues the first signed version.
+5. **Key possession is proven.** The runtime signs an activation challenge. The console may change to
+   `Key activated` or `Possession proven`; it must not claim `Runtime attached` from a signature alone.
+   A named workload/source is verified only through platform-authenticated enrollment, workload
+   attestation or documented egress control.
+6. **Profiles reference evidence only after negotiation.** A cooperating A2A Agent Card, UCP profile or
+   Web Bot Auth directory can reference the credential/status metadata through a supported extension.
+   Without platform evidence, source remains self-declared metadata.
+7. **Every protected action is signed.** The egress signer covers method, authority/target, digest,
+   time, nonce and credential reference under the selected standard. The model cannot read the key.
+8. **Recipient enforces.** Free middleware verifies signature, credential, current revision/status and
+   local policy before its own API, checkout or workflow acts.
+9. **Exception uses the selected rail's authorization artifact.** A human decision binds action,
+   amount, counterparty, delegation version, expiry and one-time use through AP2, TAP, x401/FIDO or the
+   pilot's existing standard. Infinity should add a receipt format only when no accepted rail supplies
+   one and the recipient has committed to consume it.
+10. **Lifecycle remains live.** Rotation overlaps keys safely, compromise revokes the affected key,
+    mandate changes supersede old authority, and owner deletion terminally revokes agents while
+    retaining evidence.
+
+Two product paths share that lifecycle:
+
+- **Self-serve for customer-controlled runtimes:** target one CLI or local sidecar, one browser device
+  approval and one generated runtime configuration. No raw private-key copy/paste.
+- **Cooperating agent platform/fleet:** organization API, customer KMS/workload identities, enrollment
+  tokens, batch lifecycle, webhooks, audit export and tenant-scoped billing. No one-agent-at-a-time
+  console dependency.
+
+Closed hosted assistants such as Muse, Instinct, Wajo and Dots cannot be attached by their users unless
+the operator exposes a key, extension or outbound-signing integration. Treat those companies as future
+partnership targets; do not advertise one-command compatibility that their platforms do not permit.
+
+### 21.8 Who pays and why
+
+The eventual economics remain correct: the accountable/agent side pays; verification remains free.
+But “per active agent” is a hypothesis, not evidence. Start with a paid, outcome-linked pilot where the
+buyer already pays for blocked tasks, manual human fallback, support or disputes. Later pricing can be
+per active managed agent/mandate, protected action volume or enterprise control-plane SLA. Identity
+provider cost may pass through transparently; it is not the value metric.
+
+The first buyer is a mid-sized action-agent operator or company fleet with enough volume to measure
+failure, but small enough to integrate quickly. Meta, OpenAI and other frontier labs are compatibility
+targets, not first customers. They already own user auth, runtime, keys and distribution. They adopt an
+external dependency only after it unlocks recipients they cannot reach, satisfies a requirement they
+cannot self-assert, reduces recognized liability/compliance cost, or is already accepted by several
+important counterparties.
+
+The first verifier is one willing API, commerce platform or merchant already receiving agent traffic.
+Do not target Amazon-class gatekeepers whose refusal is commercial. A Shopify/UCP-class counterparty
+that wants the transaction can measure whether trusted-agent acceptance raises conversion without
+raising fraud.
+
+### 21.9 Architecture horizontal; wedge selection evidence-first
+
+A horizontal product launched “for every industry” has no distribution. A vertical product architecture
+gets trapped. The answer remains **horizontal primitive, narrow beachhead**, but this research does not
+yet prove which beachhead wins.
+
+§13's voice argument has the stronger cold-start property: one operator can test disclosure and hang-up
+rates without persuading every recipient to install software. Commerce has better-defined software
+boundaries and measurable allow/deny events, but requires both an agent operator and a recipient to
+commit. Standards availability is not evidence that either will.
+
+Therefore commerce begins as a **commercial recruitment test, not a build-order change**. Run it while
+the currently binding §19.9 key-lifecycle work and R7 planning continue. If an operator and a
+Shopify/UCP-class recipient make the commitments in §21.10, ask the founder to authorize one narrow
+commerce integration. If they do not, test §13's voice acceptance assumption next. Never build both.
+
+### 21.10 Separate commercial, readiness and integration gates
+
+#### Gate A — seven-day commercial recruitment; no product code
+
+Contact at least ten qualified action-agent operator decision-makers and ten unrelated recipient
+engineering, risk or commerce leads. Record the denominator, role, current blocked/fallback/dispute
+cost, current use of DigiCert/Proof/Web Bot Auth/TAP/AP2, response and reason for refusal. A qualified
+operator has recurring externally blocked actions and authority to buy; a qualified recipient controls
+an endpoint that receives agent traffic and has authority to enforce a policy.
+
+Commerce passes recruitment only when:
+
+- one accountable/agent-side operator signs a pilot with an explicit total price and pays a deposit;
+- the price is at least 10% of one month of the recurring cost the operator says the pilot can reduce,
+  with a $500 floor;
+- one unrelated recipient signs a written commitment to integrate and enforce one named route; and
+- both explain why their current Proof, DigiCert, Web Bot Auth, TAP/AP2 or internal solution is
+  insufficient for that route.
+
+Verifier-side payment does not satisfy the current economics. If a recipient offers to pay while no
+operator will, record it as evidence to reconsider §10 rather than calling the present thesis proven.
+If Gate A fails, no commerce code begins; run the voice recruitment/acceptance test.
+
+#### Gate B — technical readiness; not timed as demand evidence
+
+Before a real counterparty can rely on Infinity: install the explicit issuer key, finish safe key
+rotation/recovery, publish revoked-aware behavior and close R7, define the one negotiated protocol
+profile, and document how alternate egress is prevented. Delays here are engineering failures, not
+market falsification, so they do not consume Gate A or Gate C's clock.
+
+#### Gate C — fourteen-day bilateral integration, starting only after A and B
+
+Build exactly one signer/runtime component and one verifier for the committed route. “One engineer-day
+to integrate” is measured from when a party receives working credentials, package, documentation and a
+passing conformance fixture until its first accepted fixture; procurement, security review and Infinity
+prerequisite work are reported separately.
+
+The pilot passes only if:
+
+- both parties are external and unrelated to Infinity;
+- the recipient's real boundary allows one valid, current, in-scope action because the negotiated
+  evidence passes;
+- it denies forged, frozen, superseded and outside-scope variants;
+- the operator demonstrates that the selected traffic cannot bypass its signer/egress control;
+- latency, integration time, acceptance change and manual handling are measured; and
+- the operator/accountable side pays the agreed pilot fee and signs a paid continuation at a recorded
+  price based on the measured outcome.
+
+Publish a sanitized integration case and fixture. If the integration cannot complete, state whether the
+failure was Infinity readiness, operator control, recipient adoption or absent economic value. Do not
+explain it as a need for a generalized adapter matrix.
+
+### 21.11 What stops now
+
+Until the test passes, do not build:
+
+- a Muse/Instinct/Dots/Wajo-style agent, chat surface, planner, memory or cloud computer;
+- additional KYC providers, KYC dashboards or stored identity documents;
+- email, phone, wallet, card, insurance or refund-reserve production rails;
+- a generic adapter matrix, multi-issuer abstraction or broad framework SDK suite;
+- more passport/console visual polish;
+- generic permission labels without an executor that enforces them;
+- a self-issued trust/reputation score; or
+- more spend/approval features with no recipient or rail consuming their decisions.
+
+Reliance blockers are not optional feature work: install an explicit issuer key before real use, close
+R7 with a revoked-aware app-first rollout, and implement safe agent-key rotation/recovery. But run
+partner recruitment in parallel so basement work can no longer substitute for demand evidence.
+
+### 21.12 Moat, honestly
+
+The code is not the moat. Open protocols, signatures, JWTs, KMS calls and adapters are copyable. A
+status callback creates dependency, not defensibility. A moat can form only from:
+
+1. **Enforced distribution:** recipient edges or rails already evaluate Infinity evidence.
+2. **Acceptance network:** competing agents and counterparties recognize the same portable decision.
+3. **Operational trust:** stable keys, rotation, revocation, SLA, incident response, audits and
+   governance strong enough for reliance.
+4. **Recognized action evidence:** contracts, dispute processes or partners treat mandates/receipts as
+   useful evidence—not merely a cryptographic curiosity.
+5. **Independent attestations across companies:** future history can compound only from externally
+   attested outcomes, never a score Infinity invents for its own customers.
+
+Proof reports an existing identity relying-party network but has not publicly demonstrated x401
+acceptance across it. DigiCert reports passport plus policy-enforcement infrastructure; Okta has
+enterprise distribution; Cloudflare owns an edge decision point; card networks own liability rules.
+Those—not adapter count—are competitive assets. Infinity must create an enforced distribution asset,
+secure a contractual partner, or partner into an existing network. A beautiful passport does not
+qualify.
+
+### 21.13 Scorecard and decision
+
+| Question | Option A: full agent | Option B: passport only | Option C: enforced trust runtime |
+| --- | ---: | ---: | ---: |
+| Better models increase value | No | Yes | Yes |
+| Industry-agnostic core | No | Yes | Yes |
+| Neutral across agent makers | No | Yes | Yes |
+| Immediate visible consumer UX | Yes | Partial | Partial |
+| Defensible against current entrants | No | No | Only with distribution/enforcement |
+| Solo-team scope | No | Yes | Yes, one path at a time |
+| Can be falsified in 14 days | Poorly | Yes, but weak signal | Yes, with bilateral pilot |
+| Creates an unavoidable hot path | Yes, inside its own runtime | No | Yes, on the selected route |
+| Verdict | **Reject** | **Keep as primitive** | **Recommend, conditional on evidence** |
+
+**Kiro recommendation, pending valid founder approval:** keep Infinity's architecture horizontal, but
+stop describing breadth as progress. The next product proof is not another database primitive and not a
+consumer assistant. It is one customer-controlled external agent with its key activated and selected
+egress constrained, one unrelated recipient enforcing the negotiated result, and the accountable/
+operator side paying because more legitimate actions complete safely. If that cannot be produced, the
+company thesis is not rescued by adding more features.
