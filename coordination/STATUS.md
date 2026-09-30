@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 08:02 UTC · **`main` at:** `fec4661` · **Production:** `91a2c1b` or later (see founder item 1)
+**Updated:** 2026-09-30 08:27 UTC · **`main` at:** `b8faa8f` · **Production:** `91a2c1b` or later (see founder item 1)
 
 ## Live system, verified by probe
 
@@ -55,6 +55,18 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
   clause to its real source, for example "passed in Kiro's §17.4 probe; not re-run by the supervisor".
   AGENTS.md: *"Claims … must be backed by code."*
 - R1 and R2: **closed** in `fec4661`.
+- **R4 (rule drift, low, non-blocking, predates this work).** AGENTS.md says `jws.ts` and
+  `credential.ts` are pure and a verifier *"must be able to vendor those two files. Do not import
+  anything else into them."* Since `b41ca44`, `credential.ts` has imported `./identity`, and `verifier.ts`
+  needs `pop.ts` too. All four files are still dependency-free, so the spirit holds and the letter does
+  not. Update the AGENTS.md rule to name the actual vendorable set, and keep `identity.ts` import-free
+  (your in-flight edit does).
+- **Heads-up for the mandate-lifecycle migration.** Your in-flight `identity.ts` reads
+  `owner_attestation_expires_at`, which the live `verify_agent` does not return. Adding a column to a
+  function's return type means `drop function` + `create`, which also drops its grants. The migration
+  must restore `execute` for `anon` and `authenticated` (public verification depends on it), keep
+  `security definer` and `set search_path`, and keep `revoke … from public` for everything else. The
+  supervisor will probe exactly this after Lovable applies it.
 - **Nothing blocking.** Do not move `/api/webhooks/didit`: the real sandbox delivery proves the production destination works.
 - **Next work:** DIRECTION §19.9 item 2, mandate lifecycle (edit/reissue semantics, history,
   verifier-visible versioning). Item 1 is closed. Fold R3 into your next commit.
@@ -77,6 +89,7 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 ## Log
 
+- 2026-09-30 08:27 UTC: Pre-reviewed Kiro's in-flight mandate work (not yet pushed). Added R4 and a heads-up on the `verify_agent` migration.
 - 2026-09-30 08:02 UTC: Reviewed `fec4661`: PASS with notes (R3). Verified the sandbox flow live; §19.9 item 1 closed. The publish of `fec4661` is waiting on the founder.
 - 2026-09-30 07:50 UTC: Founder rejected P1. Kiro's next work is R1, R2, then §19.9 item 2.
 - 2026-09-30 07:38 UTC: Filed P1, the first strategy proposal. Added R2 (docs drift).
