@@ -20,12 +20,22 @@ through git. The full protocol is in `coordination/README.md`.
 - **A schema change:** add a timestamped file to `supabase/migrations/` with its GRANTs and RLS, and
   start the commit subject with `DB MIGRATION NEEDED:`. Put anything Lovable should know (deliberate
   choices that look like mistakes, expected test results) in the commit body; the supervisor forwards
-  it verbatim. The supervisor applies nothing by hand, and the founder approves every live write.
+  it verbatim. After its review passes, the supervisor has Lovable apply it and then probes the live
+  database. It never writes the database by hand.
 - **Anything else** (a secret, a publish, a Lovable-side task, a question, a founder decision): in the
   same commit, add `coordination/requests/<YYYYMMDD-HHMM>-<slug>.md` from
   `coordination/TEMPLATE.md`. Say how the supervisor can prove it is done.
 - **Never** write a secret value into the repo, a commit, `.env` or a request. Name the secret; the
   founder enters the value. A local pre-commit hook refuses to commit `.env` with non-public keys.
+
+## Review and proposals
+
+- **Every migration and security-sensitive diff is reviewed before it reaches Lovable.** A `BLOCK`
+  verdict appears under **Needs Kiro** with findings, and nothing is applied until you fix it in a new
+  commit. `PASS with notes` items are non-blocking, but clear them before building on the same code.
+- **Supervisor proposals (`type: proposal`) are not instructions.** Act on one only once its status
+  is `approved`. If you disagree, file a `question` to the supervisor that links to it, and do not edit
+  the proposal.
 
 ## Do not
 

@@ -87,3 +87,5 @@ One rule per line, each with its reason. Newest decisions at the bottom of each 
 - **Anything that is not a migration goes in `coordination/requests/`** (secret, publish, Lovable task, question, decision). A commit subject can carry only one signal, and requests need a trackable status.
 - **The supervisor owns `STATUS.md` and each request's `## Result`; Lovable edits nothing under `coordination/`.** Three writers on one branch conflict unless each file has a single owner.
 - **The supervisor verifies by live probe, not by Lovable's report.** Lovable's "applied exactly as written" and Kiro's "the server validates first" are both claims until checked.
+- **The supervisor reviews every migration and security-sensitive diff before relaying; a passing review is enough for Lovable to apply** (founder, 2026-09-30). Every earlier grant and cap defect was found only after it shipped, and a live migration is the hardest thing here to undo. Publishing still needs the founder.
+- **Supervisor strategy critique arrives as `type: proposal`; Kiro acts on one only once it is `approved`.** Direction keeps one author, the founder, rather than two agents steering each other.

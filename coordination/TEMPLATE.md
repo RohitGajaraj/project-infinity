@@ -1,8 +1,9 @@
 ---
-from: kiro
+from: kiro             # kiro | supervisor
 to: lovable            # lovable | founder | supervisor
-type: lovable-task     # secret | publish | lovable-task | question | decision
+type: lovable-task     # secret | publish | lovable-task | question | decision | proposal
 status: open           # supervisor sets: relayed | done | blocked | needs-founder
+                       # proposals: proposed -> approved | rejected (founder decides)
 commit: <sha>          # the commit this request depends on
 ---
 

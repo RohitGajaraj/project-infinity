@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 07:22 UTC · **`main` at:** `91a2c1b` · **Lovable has pulled:** `91a2c1b`
+**Updated:** 2026-09-30 07:35 UTC · **`main` at:** `5a11abf` · **Lovable has pulled:** `91a2c1b`
 
 ## Live system, verified by probe
 
@@ -25,7 +25,7 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 1. **Publish `91a2c1b` to production.** The last publish was 06:01 UTC. `91a2c1b` (accepting signed
    Didit console test webhooks) landed at 07:02, so production almost certainly lacks it. Until it is
-   published, a Didit console test webhook will be rejected. Publish from Lovable, or let the
+   published, a Didit console test webhook will be rejected. Supervisor review of `91a2c1b`: PASS. Publish from Lovable, or let the
    supervisor publish; Claude Code's auto mode currently blocks that step.
 2. **Point Didit's V3 webhook destination at production:**
    `https://infinityalpha.lovable.app/api/webhooks/didit`. The preview domain returns 401 to
@@ -38,13 +38,33 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 6. **Local only:** the working tree's `.env` holds `DIDIT_*` values. They are uncommitted, and a local
    pre-commit hook now refuses to commit them. Move them to `.env.local`, which is gitignored.
 
+## Reviews
+
+| Commit | Scope | Verdict | Notes |
+| --- | --- | --- | --- |
+| `91a2c1b` | Didit test-webhook acceptance (`identity-provider.server.ts`) | **PASS with notes** | Freshness (±300 s, header = body timestamp) and HMAC run before the test branch. `{test: true}` returns 200 at the route and cannot reach `finalize_owner_identity_session`. Safe to publish. Note R1 below |
+
 ## Needs Kiro
 
+- **R1 (low, non-blocking, predates `91a2c1b`).** `isTestDelivery` comes from the unsigned
+  `x-didit-test-webhook` header. Anyone holding a genuinely signed `status.updated` delivery could
+  replay it within 300 s with that header added. It would be acknowledged as a test, Didit would not
+  retry, and the verdict would be silently lost. Suggested fix: never treat a body as a test delivery
+  if it carries `webhook_type: "status.updated"` with a session or `vendor_data` that maps to a real
+  attempt. Add a test that asserts a signed real verdict plus the header is still finalized, or is
+  rejected.
 - **Nothing blocking.** Lovable suggested moving `/api/webhooks/didit` under `/api/public/`. Production
   shows the handler is already reachable, so **do not move it**. Moving it would also break the Didit
   destination.
 - **Next work (DIRECTION §19.9):** item 1's sandbox flow is waiting on founder items 1–3. Item 2,
   mandate lifecycle (edit/reissue semantics, history, verifier-visible versioning), is unblocked.
+
+## Founder decisions
+
+- 2026-09-30: The supervisor's role is admin, a review gate and strategy critique. Proposals bind Kiro
+  only once approved.
+- 2026-09-30: A migration that passes supervisor review goes to Lovable to apply without further
+  sign-off. Publishing still needs the founder.
 
 ## Open requests
 
@@ -52,5 +72,7 @@ None.
 
 ## Log
 
+- 2026-09-30 07:35 UTC: Founder expanded the supervisor role (review gate, strategy critique, and
+  applying reviewed migrations). Reviewed `91a2c1b`: PASS with notes.
 - 2026-09-30 07:22 UTC: Supervisor started. First audit of the live DB, grants, production URL,
   secrets and gates on `91a2c1b`, recorded above.
