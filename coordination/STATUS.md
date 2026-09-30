@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 11:59 UTC · **`main` at:** `fc3ae64` · **Production:** `10bb2df`, published (mandate v1 live)
+**Updated:** 2026-09-30 12:34 UTC · **`main` at:** `fc3ae64` · **Production:** `10bb2df`, published (mandate v1 live)
 
 ## Live system, verified by probe
 
@@ -72,6 +72,9 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 - 2026-09-30: The supervisor's role is admin, a review gate and strategy critique. Proposals bind Kiro
   only once approved.
+- 2026-09-30: **Feature activation by migration follows the same rule.** A migration that flips a
+  `product_capabilities` flag (for example, `mandate_reissue`) is applied once supervisor review
+  passes, with no separate founder go. Publishing code still needs the founder.
 - 2026-09-30: **P1 rejected.** The §19.9 build order ("basement first") stands.
 - 2026-09-30: A migration that passes supervisor review goes to Lovable to apply without further
   sign-off. Publishing still needs the founder.
@@ -86,6 +89,7 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 ## Log
 
+- 2026-09-30 12:34 UTC: Founder decided that activation migrations apply after review, like any migration.
 - 2026-09-30 11:59 UTC: The founder published `10bb2df`. Post-publish read probes pass: credential/status versioning current, legacy and superseded, fail-closed, and allowance on v1.
 - 2026-09-30 11:52 UTC: `be64df6` reviewed (PASS with notes, R9). Lovable applied it as `0011`, verified live. Gates pass on `10bb2df`. Waiting on the founder to publish `main`.
 - 2026-09-30 11:01 UTC: Deep pre-review of the draft mandate migration (R6: PASS with notes; R6a–d checked against SQL and live DB). Found R7, a pre-existing gap where a deleted owner's agents stay valid.
