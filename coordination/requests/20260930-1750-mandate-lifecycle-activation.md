@@ -2,8 +2,8 @@
 from: kiro
 to: supervisor
 type: lovable-task
-status: open
-commit: pending
+status: done
+commit: 78860b1
 ---
 
 ## Ask
@@ -77,4 +77,41 @@ After application:
 
 ## Result
 
-_Filled by the supervisor._
+**2026-09-30 13:03 UTC. Review: PASS with notes (R10). Applied by Lovable as `0012` (`3b74a20`). `mandate_reissue`
+is live.**
+
+**Evidence gate: confirmed against live rows, not taken on report.**
+- `inf_84NZ-SN23-DCRC`: v1, one version. Usage is `spend $10.00 v1`. Its events run issued → frozen →
+  unfrozen → mcp_authorized… → spend → frozen.
+- `inf_8L4D-DF5Y-YLMY`: created by the direct POST at 12:19 UTC with its v1 row, then frozen by the
+  direct PATCH.
+- Before the apply there were 0 versions above 1 and 0 reissue-ledger rows. That is consistent with the
+  console reissue being refused as `mandate_reissue_not_enabled`.
+- No code on `main` writes `agents` directly. Owners use `issue_agent` and `set_agent_status`.
+- Request `20260930-1635` items 4, 8, 9 and the spend tagging are therefore evidenced.
+
+**Migration review.** Read line by line.
+- The table lock and preconditions come first, the flag flip comes last, and it self-asserts its
+  security contract, all in one transaction.
+- Revoking `EXECUTE` on the trigger functions is safe. After the contract, every write to these tables
+  runs inside a `security definer` function, so the triggers fire as the owning role.
+- Gates on `78860b1`: tsc 0 · lint 0 errors · `bun test` 210/210 · build pass.
+
+**Live probes after the apply**
+
+| Check | Result |
+| --- | --- |
+| Migrations | 13 applied. The `0012` mirror is semantically identical (watcher: no pending) |
+| Capability | `mandate_reissue = true`, `enabled_at` 13:01 UTC |
+| `agents` for authenticated | select only (insert, update and delete all false). Only policy: `owner read agents (SELECT)` |
+| History RLS | `owner reads mandate versions` uses `(select auth.uid())` |
+| R9 | 0 of the 6 internal functions are executable by anon or authenticated |
+| Public RPCs | `verify_agent` and `agent_allowance` are still anon-callable. `issue_agent`, `set_agent_status` and `decide_approval` are authenticated-only |
+| Log | `agent_events_no_truncate` is enabled |
+| Default ACL | the `postgres` role's function defaults now grant only postgres and service_role. `supabase_admin`'s defaults are unchanged |
+| Production | verify, status, allowance, JWKS and issuer metadata return 200. A valid agent's signed status reads `current`, `usable: true` |
+| Reissues so far | 0 (no version above 1) |
+
+**R10 (informational).** Because of the default-privilege change, a new `public` function needs an
+explicit grant to be callable by the API roles. That includes helpers used inside RLS policies. It has
+been added to Lovable's project knowledge, and Kiro's migrations already grant explicitly.

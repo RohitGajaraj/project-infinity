@@ -3,13 +3,13 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 12:34 UTC · **`main` at:** `fc3ae64` · **Production:** `10bb2df`, published (mandate v1 live)
+**Updated:** 2026-09-30 13:03 UTC · **`main` at:** `3b74a20` · **Production:** `10bb2df`, with mandate reissue **live**
 
 ## Live system, verified by probe
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Migrations applied | 12/12. `0000` is Lovable's baseline; `0001`–`0011` mirror all 11 files in `supabase/migrations/`. `0011` is the mandate lifecycle, applied 2026-09-30 | `drizzle.__drizzle_migrations` hashes match `drizzle/migrations/*.sql` |
+| Migrations applied | 13/13. `0000` is Lovable's baseline; `0001`–`0012` mirror all 12 source files. `0011` expanded and `0012` activated the mandate lifecycle (2026-09-30) | `drizzle.__drizzle_migrations` hashes match `drizzle/migrations/*.sql` |
 | Mirror fidelity | All 10 semantically identical to source. `0005` uses `create` where the source uses `create or replace`, with the same effect | Comment- and whitespace-normalised diff |
 | Pending migrations | None | No source file lacks a mirror |
 | Owner-identity grants (`0010`) | anon: no execute on any of the six functions. `finalize_owner_identity_session`: service_role only. Legacy `record_owner_attestation`: disabled | `has_function_privilege` on the live DB |
@@ -22,6 +22,7 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 | Challenge ledger (`0009`) | `issue_agent_challenge` and `record_signed_action` are service_role only. `agent_challenges` has RLS on, with no anon/authenticated select | `has_function_privilege`, `has_table_privilege` |
 | **Sandbox owner flow (§19.9 item 1)** | **Closed.** A real signed Didit sandbox delivery reached the production webhook and was finalized by the service role: one `approved` session, and an attestation `didit · government_id_and_liveness · high`, expiring 2027-09-30 | `verify_agent('inf_7PVD-2ZPP-QNRL')`; `owner_identity_sessions` counts (no PII read) |
 | Sandbox agent `inf_7PVD-2ZPP-QNRL` | Public status is `frozen`, `usable: false`. The VC-JWT carries `nameSource: self_declared`, `operatorAsserted: true` and the canonical status URL | `/api/public/status`, `/api/public/verify`, decoded `/api/public/credential` |
+| **Mandate reissue (`0012`)** | **Live** since 13:01 UTC. Owners have select only on `agents` and write through RPCs. R9 is closed, the `agent_events` truncate guard is on, and public verification is unchanged | Request `20260930-1750` |
 | **Mandate lifecycle (`0011`)** | 10/10 agents on v1, each with a v1 snapshot event in the hash chain. `mandate_reissue = false`; no v2. `reissue_agent_mandate` is service_role only; the new tables have RLS on with no anon access. The published `fec4661` app still serves verify, status, credential, allowance and JWKS with HTTP 200 | Live catalog + public endpoints; request `20260930-1635` |
 | Quality gates on `10bb2df` | tsc pass · lint 0 errors · `bun test` 210/210 · build pass (includes Lovable's regenerated types) | Supervisor's clean clone |
 | Quality gates on `fec4661` | tsc pass · lint 0 errors (7 existing warnings) · `bun test` 201/201 · build pass | Supervisor's clean clone |
@@ -51,21 +52,16 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 ## Needs Kiro
 
-- **R9 (hygiene, low, non-blocking; fold into the activation/contract migration).**
-  - `mandate_snapshot_hash` is `security definer` and anon-executable. It revokes only `public`, and
-    the live default ACL grants new `public` functions to anon and authenticated.
-  - Revoke `execute` from anon and authenticated on it and on the four new trigger functions.
-  - Use `(select auth.uid())` in `owner reads mandate versions`.
-  - Consider a `before truncate` guard on `agent_events`.
+- **R10 (informational).** Default function grants are revoked for the migration role. Every new API
+  or RLS-used function needs an explicit `grant execute`. Your migrations already do this; keep it
+  that way.
 - **R7 (pre-existing trust gap, still open):** a deleted owner's agents stay `valid`. Revoke them, but
   keep the history.
-- **Closed:** R1 and R2 (`fec4661`); R3, R4, R5, R6a and R6b (`be64df6`).
-- **Next work:**
-  1. Run `bun run e2e` against production to cover the write-side checks the supervisor cannot run
-     (request `20260930-1635` items 4, 8 and 9, plus spend tagging), and file the results as a
-     request.
-  2. Then ship the activation/contract migration: enable reissue, drop the direct-write compatibility, fold in R9, and
-  consider R7. Give it the same review, then apply, then publish.
+- **Closed:** R1 and R2 (`fec4661`); R3, R4, R5, R6a and R6b (`be64df6`); R9 (`78860b1`).
+- **Next work:** the mandate lifecycle (DIRECTION §19.9 item 2) is complete and live. Next is §19.9
+  item 3, safe agent-key rotation and recovery, or the strategy analysis you mentioned. That analysis
+  goes to the supervisor as a `type: proposal` for the founder. R7 stays deferred, as your
+  `78860b1` note explains.
 - **Standing:** do not move `/api/webhooks/didit`. The real sandbox delivery proves the production destination works.
 
 ## Founder decisions
@@ -83,12 +79,14 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 | Request | From → to | Status |
 | --- | --- | --- |
+| [Mandate lifecycle activation](requests/20260930-1750-mandate-lifecycle-activation.md) | kiro → supervisor | **done**. Applied as `0012`; reissue is live |
 | [P1: Run the external verifier test now](requests/20260930-0738-verifier-test-before-features.md) | supervisor → founder | **rejected** by the founder. §19.9 order stands |
 | [Review R1, record the sandbox run](requests/20260930-0751-review-r1-record-sandbox.md) | kiro → supervisor | **needs-founder**: publish, then the console test |
-| [Mandate lifecycle expansion](requests/20260930-1635-mandate-lifecycle-expansion.md) | kiro → supervisor | **done**. Applied, published, and read-probed live. The write-side checks go to Kiro's e2e |
+| [Mandate lifecycle expansion](requests/20260930-1635-mandate-lifecycle-expansion.md) | kiro → supervisor | **done**. Fully evidenced, including the e2e write checks |
 
 ## Log
 
+- 2026-09-30 13:03 UTC: `78860b1` reviewed (PASS with notes, R10) and its e2e evidence confirmed against live rows. Lovable applied it as `0012`; `mandate_reissue` is live and every live probe passes.
 - 2026-09-30 12:34 UTC: Founder decided that activation migrations apply after review, like any migration.
 - 2026-09-30 11:59 UTC: The founder published `10bb2df`. Post-publish read probes pass: credential/status versioning current, legacy and superseded, fail-closed, and allowance on v1.
 - 2026-09-30 11:52 UTC: `be64df6` reviewed (PASS with notes, R9). Lovable applied it as `0011`, verified live. Gates pass on `10bb2df`. Waiting on the founder to publish `main`.
