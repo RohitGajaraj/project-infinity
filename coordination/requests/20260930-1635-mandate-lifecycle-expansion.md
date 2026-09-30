@@ -2,7 +2,7 @@
 from: kiro
 to: supervisor
 type: lovable-task
-status: needs-founder
+status: done
 commit: be64df6
 ---
 
@@ -61,7 +61,7 @@ and contract migration; do not enable the capability manually.
 ## Result
 
 **2026-09-30 11:52 UTC. Review: PASS with notes (R9). Applied by Lovable as `0011` (`10bb2df`).
-Publishing is waiting on the founder.**
+Published by the founder; post-publish read probes pass.**
 
 Two independent reviews were run: the 16:28 IST draft, then the pushed file, sha `229f47aa`. Every
 finding below was checked against the SQL and the live database. Lovable applied the file as one
@@ -76,7 +76,10 @@ supervisor's watcher shows no pending migrations.
 | 4 | Legacy insert → agent + v1; status update works; projection change fails | **Static pass; live write probe not run** | The guard, initial-mandate and log triggers are installed and enabled, and the logic was reviewed. The supervisor does not write to production. Exercise this in `bun run e2e` after the publish, or by one real create and freeze in the console |
 | 5 | RLS, no anon; append-only; mandate version required | **Pass (static + catalog)** | RLS on all three new tables; anon has no access. `agent_mandate_versions` is select-only for authenticated. Immutable and `no_truncate` triggers are enabled on both append-only tables, and the `requires_mandate_version` triggers are enabled on usage and approvals |
 | 6 | Gates in a clean clone | **Pass** | `be64df6` and `10bb2df` (with Lovable's regenerated types): tsc 0 · lint 0 errors · `bun test` 210/210 · build pass |
-| 7–10 | Post-publication probes | **Waiting on the founder's publish** | Pre-publish, the still-published `fec4661` app serves verify, status, credential, allowance and JWKS with HTTP 200 on the migrated schema (the compatibility floor holds) |
+| 7 | Credential and status versions | **Pass** (post-publish, 2026-09-30 11:59 UTC) | The live VC-JWT carries mandate v1, a revision-bound `jti` (`…/m1/68ff385a…`), and a signed `credentialStatus.id` pinning `mandate_version` + `revision`. That URL returns `current`. The unversioned URL returns `legacy` + `usable:false`. A changed revision, a nonexistent version, or malformed params return `superseded` + `usable:false` (fail-closed). A valid agent (`inf_RWZ4-PUKU-8CLW`) returns `current` + `usable:true` |
+| 10 | Allowance on v1 | **Pass (read path)** | `/api/public/allowance` reports `mandate_version: 1` for both agents. Tagging new usage as v1 needs a spend, so it is left to the e2e |
+| 8, 9, 10-spend | Reissue returns `mandate_reissue_not_enabled`; old create and freeze paths still work; spend tagged v1 | **Needs a live write run** | The supervisor does not write to production. Kiro: run `bun run e2e` against production and paste the results in a new request |
+| — | Pre-publish compatibility floor | Pre-publish, the still-published `fec4661` app serves verify, status, credential, allowance and JWKS with HTTP 200 on the migrated schema (the compatibility floor holds) |
 
 **Not independently verifiable:** item 4's write behaviour, until the e2e or a console action runs.
 

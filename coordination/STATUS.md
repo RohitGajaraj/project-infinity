@@ -3,7 +3,7 @@
 Maintained by the supervisor. Kiro: read this before every task and do not edit it. Protocol is in
 [`README.md`](README.md).
 
-**Updated:** 2026-09-30 11:52 UTC · **`main` at:** `10bb2df` · **Production:** pre-`fec4661` (publish pending)
+**Updated:** 2026-09-30 11:59 UTC · **`main` at:** `fc3ae64` · **Production:** `10bb2df`, published (mandate v1 live)
 
 ## Live system, verified by probe
 
@@ -28,12 +28,10 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 
 ## Blocked on the founder
 
-1. **Publish `main` (`10bb2df`)** in Lovable (Publish → Update). One publish ships both the R1 webhook
-   hardening (`fec4661`) and the version-aware mandate app (`be64df6`). Both reviews pass, the
-   gates pass, and the migration it needs is already live. Afterwards:
-   - send one signed Didit console test and expect HTTP 200;
-   - press Freeze and then Unfreeze once on a test agent;
-   - tell the supervisor, which then runs the post-publish probes (request `20260930-1635`, items 7–10).
+1. **Published: done.** Production serves mandate v1 (verified). Two quick checks remain:
+   - Send one signed Didit console test and expect HTTP 200. That confirms R1 on production.
+   - Press Freeze and then Unfreeze once on a test agent. That checks the new `set_agent_status` path
+     and its error surfacing.
 2. ~~Point Didit's webhook at production~~ and 3. ~~run the sandbox flow~~: **done**, verified live
    (see *Sandbox owner flow* above).
 4. **Before any real user relies on a credential:** run `bun run keygen` and put the result in
@@ -62,8 +60,11 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 - **R7 (pre-existing trust gap, still open):** a deleted owner's agents stay `valid`. Revoke them, but
   keep the history.
 - **Closed:** R1 and R2 (`fec4661`); R3, R4, R5, R6a and R6b (`be64df6`).
-- **Next work:** blocked on the founder's publish. After the post-publish probes pass, ship the
-  activation/contract migration: enable reissue, drop the direct-write compatibility, fold in R9, and
+- **Next work:**
+  1. Run `bun run e2e` against production to cover the write-side checks the supervisor cannot run
+     (request `20260930-1635` items 4, 8 and 9, plus spend tagging), and file the results as a
+     request.
+  2. Then ship the activation/contract migration: enable reissue, drop the direct-write compatibility, fold in R9, and
   consider R7. Give it the same review, then apply, then publish.
 - **Standing:** do not move `/api/webhooks/didit`. The real sandbox delivery proves the production destination works.
 
@@ -81,10 +82,11 @@ Maintained by the supervisor. Kiro: read this before every task and do not edit 
 | --- | --- | --- |
 | [P1: Run the external verifier test now](requests/20260930-0738-verifier-test-before-features.md) | supervisor → founder | **rejected** by the founder. §19.9 order stands |
 | [Review R1, record the sandbox run](requests/20260930-0751-review-r1-record-sandbox.md) | kiro → supervisor | **needs-founder**: publish, then the console test |
-| [Mandate lifecycle expansion](requests/20260930-1635-mandate-lifecycle-expansion.md) | kiro → supervisor | **needs-founder**. Applied and verified live; waiting on the publish for items 7–10 |
+| [Mandate lifecycle expansion](requests/20260930-1635-mandate-lifecycle-expansion.md) | kiro → supervisor | **done**. Applied, published, and read-probed live. The write-side checks go to Kiro's e2e |
 
 ## Log
 
+- 2026-09-30 11:59 UTC: The founder published `10bb2df`. Post-publish read probes pass: credential/status versioning current, legacy and superseded, fail-closed, and allowance on v1.
 - 2026-09-30 11:52 UTC: `be64df6` reviewed (PASS with notes, R9). Lovable applied it as `0011`, verified live. Gates pass on `10bb2df`. Waiting on the founder to publish `main`.
 - 2026-09-30 11:01 UTC: Deep pre-review of the draft mandate migration (R6: PASS with notes; R6a–d checked against SQL and live DB). Found R7, a pre-existing gap where a deleted owner's agents stay valid.
 - 2026-09-30 08:57 UTC: Pre-reviewed the unpushed mandate-lifecycle migration. Added R5 (blocking as drafted): the direct-write revoke would break production freeze until the next publish. Proposed expand, then contract.
