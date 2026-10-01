@@ -54,8 +54,11 @@ export const Route = createFileRoute("/verify/$agentId")({
     const credentialRevision = a.credential_revision;
     const recoveryHold = a.key_recovery_hold_version === keyVersion;
     const expired = new Date(a.expires_at).getTime() <= Date.now();
-    const verdict: Verdict =
-      expired ? "expired" : a.status === "valid" && !recoveryHold ? "valid" : "frozen";
+    const verdict: Verdict = expired
+      ? "expired"
+      : a.status === "valid" && !recoveryHold
+        ? "valid"
+        : "frozen";
     const attestation = attestationFromRow(a);
 
     const card: AgentCard = {

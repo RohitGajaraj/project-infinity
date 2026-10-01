@@ -156,6 +156,36 @@ function spec(origin: string) {
           },
         },
       },
+      "/api/public/recovery-confirm/{agent_id}": {
+        post: {
+          tags: ["agent lifecycle"],
+          operationId: "confirmRecoveredAgentKey",
+          summary: "Prove possession of a recovered current key",
+          description:
+            "A recovered agent uses a current-key proof to clear its recovery hold. This never unfreezes the agent; the owner must unfreeze separately. The request carries a short-lived challenge nonce, signature and proof_body. No private key is sent.",
+          parameters: [AGENT_ID_PARAM],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["nonce", "signature", "proof_body"],
+                  properties: {
+                    nonce: { type: "string" },
+                    signature: { type: "string" },
+                    proof_body: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Recovery hold cleared; agent remains frozen." },
+            "403": { description: "Proof invalid, stale, or recovery hold unavailable." },
+          },
+        },
+      },
       "/api/public/sandbox": {
         get: {
           tags: ["verification"],

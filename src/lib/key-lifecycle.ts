@@ -1,10 +1,4 @@
-import {
-  b64uDecode,
-  b64uEncode,
-  parseStoredPublicKey,
-  sha256Hex,
-  verifyRawEd25519,
-} from "./jws";
+import { b64uDecode, b64uEncode, parseStoredPublicKey, sha256Hex, verifyRawEd25519 } from "./jws";
 
 export const KEY_CHANGE_VERSION = "INFINITY-KEY-CHANGE-v1";
 export const KEY_CONTINUITY_VERSION = "INFINITY-KEY-CONTINUITY-v1";
@@ -110,10 +104,7 @@ export function canonicalKeyChangeMaterial(parts: KeyChangeProofParts): string {
   ].join("\n");
 }
 
-export function keyChangeSigningString(
-  role: KeyProofRole,
-  parts: KeyChangeProofParts,
-): string {
+export function keyChangeSigningString(role: KeyProofRole, parts: KeyChangeProofParts): string {
   const domain = role === "continuity" ? KEY_CONTINUITY_VERSION : KEY_POSSESSION_VERSION;
   return `${domain}\n${canonicalKeyChangeMaterial(parts)}`;
 }
@@ -168,10 +159,7 @@ export const RECENT_AUTH_WINDOW_MS = 10 * 60_000;
 const STRONG_AUTH_METHODS = new Set(["password", "otp", "totp", "oauth", "sso/saml", "passkey"]);
 
 /** Latest verified interactive authentication, excluding token refreshes. */
-export function recentStrongAuthAt(
-  claims: unknown,
-  now = Date.now(),
-): string | null {
+export function recentStrongAuthAt(claims: unknown, now = Date.now()): string | null {
   if (!claims || typeof claims !== "object") return null;
   const amr = (claims as { amr?: unknown }).amr;
   if (!Array.isArray(amr)) return null;

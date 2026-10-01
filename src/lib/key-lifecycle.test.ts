@@ -60,10 +60,18 @@ describe("key transition proof", () => {
     const continuity = await signKeyChangeProof(oldPrivate, "continuity", parts);
     const possession = await signKeyChangeProof(newPrivate, "possession", parts);
 
-    expect(await verifyKeyChangeProof(oldKey.publicKey, continuity, "continuity", parts)).toBe(true);
-    expect(await verifyKeyChangeProof(newKey.publicKey, possession, "possession", parts)).toBe(true);
-    expect(await verifyKeyChangeProof(newKey.publicKey, possession, "continuity", parts)).toBe(false);
-    expect(await verifyKeyChangeProof(oldKey.publicKey, continuity, "possession", parts)).toBe(false);
+    expect(await verifyKeyChangeProof(oldKey.publicKey, continuity, "continuity", parts)).toBe(
+      true,
+    );
+    expect(await verifyKeyChangeProof(newKey.publicKey, possession, "possession", parts)).toBe(
+      true,
+    );
+    expect(await verifyKeyChangeProof(newKey.publicKey, possession, "continuity", parts)).toBe(
+      false,
+    );
+    expect(await verifyKeyChangeProof(oldKey.publicKey, continuity, "possession", parts)).toBe(
+      false,
+    );
   });
 
   test("another old key cannot transfer the Agent ID", async () => {

@@ -42,7 +42,9 @@ export const Route = createFileRoute("/api/public/credential/$agentId")({
         if (!lifecycle || !key) {
           return new Response(
             JSON.stringify({
-              error: !lifecycle ? "mandate_lifecycle_unavailable" : "agent_key_lifecycle_unavailable",
+              error: !lifecycle
+                ? "mandate_lifecycle_unavailable"
+                : "agent_key_lifecycle_unavailable",
               agent_id: id,
             }),
             { status: 503, headers: JSON_HEADERS },

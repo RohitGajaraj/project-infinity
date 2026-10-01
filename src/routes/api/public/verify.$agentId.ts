@@ -26,7 +26,9 @@ export const Route = createFileRoute("/api/public/verify/$agentId")({
               agent_id: id,
               status: "unavailable",
               usable: false,
-              error: !lifecycle ? "mandate_lifecycle_unavailable" : "agent_key_lifecycle_unavailable",
+              error: !lifecycle
+                ? "mandate_lifecycle_unavailable"
+                : "agent_key_lifecycle_unavailable",
             }),
             { status: 503, headers },
           );

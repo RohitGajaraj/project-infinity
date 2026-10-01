@@ -44,6 +44,7 @@ const RecoveryConfirmationInput = z
     body: z.string().max(10_000).optional(),
   })
   .strict();
+export type RecoveryConfirmationInput = z.infer<typeof RecoveryConfirmationInput>;
 
 type OwnedAgent = {
   id: string;
@@ -184,14 +185,7 @@ export const changeAgentKey = createServerFn({ method: "POST" })
     });
     const signedMaterial = canonicalKeyChangeMaterial(parts);
 
-    if (
-      !(await verifyKeyChangeProof(
-        data.newPublicKey,
-        data.newSignature,
-        "possession",
-        parts,
-      ))
-    ) {
+    if (!(await verifyKeyChangeProof(data.newPublicKey, data.newSignature, "possession", parts))) {
       return { ok: false, reason: "new_key_proof_invalid" };
     }
 
@@ -211,8 +205,7 @@ export const changeAgentKey = createServerFn({ method: "POST" })
       return { ok: false, reason: "recovery_must_not_claim_continuity" };
     }
 
-    const recentAuthAt =
-      data.mode === "recover" ? recentStrongAuthAt(context.claims, now) : null;
+    const recentAuthAt = data.mode === "recover" ? recentStrongAuthAt(context.claims, now) : null;
     if (data.mode === "recover" && !recentAuthAt) {
       return { ok: false, reason: "recent_authentication_required" };
     }
@@ -223,14 +216,12 @@ export const changeAgentKey = createServerFn({ method: "POST" })
         name: string,
         params: Record<string, unknown>,
       ): Promise<{
-        data:
-          | Array<{
-              key_version: number;
-              activated_at: string;
-              result: string;
-              agent_status: string;
-            }>
-          | null;
+        data: Array<{
+          key_version: number;
+          activated_at: string;
+          result: string;
+          agent_status: string;
+        }> | null;
         error: { message: string } | null;
       }>;
     };
@@ -265,60 +256,65 @@ export const changeAgentKey = createServerFn({ method: "POST" })
   });
 
 export type ConfirmRecoveredKeyResult =
-  | { ok: true; eventId: number; hash: string; keyVersion: number }
-  | { ok: false; reason: string };
+  { ok: true; eventId: number; hash: string; keyVersion: number } | { ok: false; reason: string };
 
 /** Fresh current-key proof clears a recovery hold but never unfreezes the agent. */
+export async function confirmRecoveredAgentKeyRequest(
+  data: RecoveryConfirmationInput,
+): Promise<ConfirmRecoveredKeyResult> {
+  const { verifyMcpChallenge } = await import("./issuer.server");
+  if (!(await verifyMcpChallenge(data.nonce, data.publicId))) {
+    return { ok: false, reason: "challenge_invalid_or_replayed" };
+  }
+
+  const { keyLifecycle, lookupAgent } = await import("./verify.server");
+  const { bodyHash, canonicalProofString, verifyProof } = await import("./pop");
+  const { sha256Hex } = await import("./jws");
+  const agent = await lookupAgent(data.publicId);
+  if (!agent) return { ok: false, reason: "unknown_agent" };
+  const key = keyLifecycle(agent);
+  if (!key) return { ok: false, reason: "agent_key_lifecycle_unavailable" };
+  if (agent.status !== "frozen" || key.recoveryHoldVersion !== key.version) {
+    return { ok: false, reason: "recovery_hold_not_current" };
+  }
+
+  const proofParts = {
+    nonce: data.nonce,
+    method: data.method,
+    url: data.url,
+    bodySha256: await bodyHash(data.body),
+  };
+  const proof = await verifyProof(agent.public_key, data.signature, proofParts);
+  if (!proof.ok) return { ok: false, reason: "bad_signature" };
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as unknown as {
+    rpc(
+      name: string,
+      params: Record<string, unknown>,
+    ): Promise<{
+      data: Array<{ event_id: number; hash: string; key_version: number }> | null;
+      error: { message: string } | null;
+    }>;
+  };
+  const response = await admin.rpc("record_recovery_key_confirmation", {
+    _public_id: data.publicId,
+    _nonce: data.nonce,
+    _signature: data.signature,
+    _expected_key_version: key.version,
+    _signed_material_sha256: await sha256Hex(canonicalProofString(proofParts)),
+  });
+  if (response.error) return { ok: false, reason: response.error.message };
+  const row = response.data?.[0];
+  if (!row) return { ok: false, reason: "recovery_confirmation_missing" };
+  return { ok: true, eventId: row.event_id, hash: row.hash, keyVersion: row.key_version };
+}
+
 export const confirmRecoveredAgentKey = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => RecoveryConfirmationInput.parse(input))
-  .handler(async ({ data }): Promise<ConfirmRecoveredKeyResult> => {
-    const { verifyMcpChallenge } = await import("./issuer.server");
-    if (!(await verifyMcpChallenge(data.nonce, data.publicId))) {
-      return { ok: false, reason: "challenge_invalid_or_replayed" };
-    }
-
-    const { keyLifecycle, lookupAgent } = await import("./verify.server");
-    const { bodyHash, canonicalProofString, verifyProof } = await import("./pop");
-    const { sha256Hex } = await import("./jws");
-    const agent = await lookupAgent(data.publicId);
-    if (!agent) return { ok: false, reason: "unknown_agent" };
-    const key = keyLifecycle(agent);
-    if (!key) return { ok: false, reason: "agent_key_lifecycle_unavailable" };
-    if (agent.status !== "frozen" || key.recoveryHoldVersion !== key.version) {
-      return { ok: false, reason: "recovery_hold_not_current" };
-    }
-
-    const proofParts = {
-      nonce: data.nonce,
-      method: data.method,
-      url: data.url,
-      bodySha256: await bodyHash(data.body),
-    };
-    const proof = await verifyProof(agent.public_key, data.signature, proofParts);
-    if (!proof.ok) return { ok: false, reason: "bad_signature" };
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as unknown as {
-      rpc(
-        name: string,
-        params: Record<string, unknown>,
-      ): Promise<{
-        data: Array<{ event_id: number; hash: string; key_version: number }> | null;
-        error: { message: string } | null;
-      }>;
-    };
-    const response = await admin.rpc("record_recovery_key_confirmation", {
-      _public_id: data.publicId,
-      _nonce: data.nonce,
-      _signature: data.signature,
-      _expected_key_version: key.version,
-      _signed_material_sha256: await sha256Hex(canonicalProofString(proofParts)),
-    });
-    if (response.error) return { ok: false, reason: response.error.message };
-    const row = response.data?.[0];
-    if (!row) return { ok: false, reason: "recovery_confirmation_missing" };
-    return { ok: true, eventId: row.event_id, hash: row.hash, keyVersion: row.key_version };
-  });
+  .handler(async ({ data }): Promise<ConfirmRecoveredKeyResult> =>
+    confirmRecoveredAgentKeyRequest(data),
+  );
 
 export const getAgentKeyHistory = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => HistoryInput.parse(input))

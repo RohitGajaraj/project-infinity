@@ -26,6 +26,7 @@ import { Route as ApiWebhooksDiditRouteImport } from './routes/api/webhooks/didi
 import { Route as ApiPublicAllowanceAgentIdRouteImport } from './routes/api/public/allowance.$agentId'
 import { Route as ApiPublicChallengeAgentIdRouteImport } from './routes/api/public/challenge.$agentId'
 import { Route as ApiPublicCredentialAgentIdRouteImport } from './routes/api/public/credential.$agentId'
+import { Route as ApiPublicRecoveryConfirmAgentIdRouteImport } from './routes/api/public/recovery-confirm.$agentId'
 import { Route as ApiPublicStatusAgentIdRouteImport } from './routes/api/public/status.$agentId'
 import { Route as ApiPublicVerifyAgentIdRouteImport } from './routes/api/public/verify.$agentId'
 
@@ -118,6 +119,12 @@ const ApiPublicCredentialAgentIdRoute =
     path: '/api/public/credential/$agentId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRecoveryConfirmAgentIdRoute =
+  ApiPublicRecoveryConfirmAgentIdRouteImport.update({
+    id: '/api/public/recovery-confirm/$agentId',
+    path: '/api/public/recovery-confirm/$agentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicStatusAgentIdRoute = ApiPublicStatusAgentIdRouteImport.update({
   id: '/api/public/status/$agentId',
   path: '/api/public/status/$agentId',
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
   '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
+  '/api/public/recovery-confirm/$agentId': typeof ApiPublicRecoveryConfirmAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
   '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
+  '/api/public/recovery-confirm/$agentId': typeof ApiPublicRecoveryConfirmAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/api/public/allowance/$agentId': typeof ApiPublicAllowanceAgentIdRoute
   '/api/public/challenge/$agentId': typeof ApiPublicChallengeAgentIdRoute
   '/api/public/credential/$agentId': typeof ApiPublicCredentialAgentIdRoute
+  '/api/public/recovery-confirm/$agentId': typeof ApiPublicRecoveryConfirmAgentIdRoute
   '/api/public/status/$agentId': typeof ApiPublicStatusAgentIdRoute
   '/api/public/verify/$agentId': typeof ApiPublicVerifyAgentIdRoute
 }
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/api/public/allowance/$agentId'
     | '/api/public/challenge/$agentId'
     | '/api/public/credential/$agentId'
+    | '/api/public/recovery-confirm/$agentId'
     | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
   fileRoutesByTo: FileRoutesByTo
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/api/public/allowance/$agentId'
     | '/api/public/challenge/$agentId'
     | '/api/public/credential/$agentId'
+    | '/api/public/recovery-confirm/$agentId'
     | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
   id:
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/api/public/allowance/$agentId'
     | '/api/public/challenge/$agentId'
     | '/api/public/credential/$agentId'
+    | '/api/public/recovery-confirm/$agentId'
     | '/api/public/status/$agentId'
     | '/api/public/verify/$agentId'
   fileRoutesById: FileRoutesById
@@ -270,6 +283,7 @@ export interface RootRouteChildren {
   ApiPublicAllowanceAgentIdRoute: typeof ApiPublicAllowanceAgentIdRoute
   ApiPublicChallengeAgentIdRoute: typeof ApiPublicChallengeAgentIdRoute
   ApiPublicCredentialAgentIdRoute: typeof ApiPublicCredentialAgentIdRoute
+  ApiPublicRecoveryConfirmAgentIdRoute: typeof ApiPublicRecoveryConfirmAgentIdRoute
   ApiPublicStatusAgentIdRoute: typeof ApiPublicStatusAgentIdRoute
   ApiPublicVerifyAgentIdRoute: typeof ApiPublicVerifyAgentIdRoute
 }
@@ -395,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCredentialAgentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/recovery-confirm/$agentId': {
+      id: '/api/public/recovery-confirm/$agentId'
+      path: '/api/public/recovery-confirm/$agentId'
+      fullPath: '/api/public/recovery-confirm/$agentId'
+      preLoaderRoute: typeof ApiPublicRecoveryConfirmAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/status/$agentId': {
       id: '/api/public/status/$agentId'
       path: '/api/public/status/$agentId'
@@ -443,6 +464,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAllowanceAgentIdRoute: ApiPublicAllowanceAgentIdRoute,
   ApiPublicChallengeAgentIdRoute: ApiPublicChallengeAgentIdRoute,
   ApiPublicCredentialAgentIdRoute: ApiPublicCredentialAgentIdRoute,
+  ApiPublicRecoveryConfirmAgentIdRoute: ApiPublicRecoveryConfirmAgentIdRoute,
   ApiPublicStatusAgentIdRoute: ApiPublicStatusAgentIdRoute,
   ApiPublicVerifyAgentIdRoute: ApiPublicVerifyAgentIdRoute,
 }

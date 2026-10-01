@@ -139,9 +139,12 @@ export function buildCredentialPayload(
   const keyVersion = agent.key_version ?? 1;
   const keyActivatedAt = agent.key_activated_at ?? agent.created_at;
   const keyFingerprint = agent.key_fingerprint ?? "0".repeat(64);
-  const keyAuthorizationMethod = ["initial", "legacy_import", "old_key_proof", "owner_recovery"].includes(
-    agent.key_authorization_method ?? "",
-  )
+  const keyAuthorizationMethod = [
+    "initial",
+    "legacy_import",
+    "old_key_proof",
+    "owner_recovery",
+  ].includes(agent.key_authorization_method ?? "")
     ? (agent.key_authorization_method as AgentCredentialSubject["key"]["authorizationMethod"])
     : "legacy_import";
   const stateIssuedAt = agent.credential_state_issued_at ?? mandateIssuedAt;

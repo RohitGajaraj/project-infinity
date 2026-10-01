@@ -74,7 +74,8 @@ export async function authenticateAgent(request: Request): Promise<AuthOutcome> 
       ok: false,
       status: 403,
       error: "recovery_key_confirmation_required",
-      description: "The recovered key must prove fresh possession before the owner can unfreeze it.",
+      description:
+        "The recovered key must prove fresh possession before the owner can unfreeze it.",
     };
   }
   if (agent.status !== "valid") {

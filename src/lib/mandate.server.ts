@@ -196,7 +196,10 @@ export async function getApprovalState(
     _reference: reference,
   });
   if (!row) return null;
-  if (!Number.isInteger(row.current_mandate_version) || !Number.isInteger(row.current_key_version)) {
+  if (
+    !Number.isInteger(row.current_mandate_version) ||
+    !Number.isInteger(row.current_key_version)
+  ) {
     throw new Error("agent_authority_lifecycle_unavailable");
   }
   return {

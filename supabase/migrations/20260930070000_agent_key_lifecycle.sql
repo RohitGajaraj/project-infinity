@@ -321,6 +321,35 @@ begin
 end
 $function$;
 
+-- Existing mandate-era rows were created while the agent key was still
+-- immutable. Their provenance is safely attributable to imported key v1.
+-- Future legacy writes are filled by the compatibility triggers below.
+update public.approval_requests r
+   set key_version = a.current_key_version
+  from public.agents a
+ where r.agent_id = a.id
+   and r.key_version is null
+   and a.current_key_version = 1;
+update public.agent_usage u
+   set key_version = a.current_key_version
+  from public.agents a
+ where u.agent_id = a.id
+   and u.key_version is null
+   and a.current_key_version = 1;
+update public.agent_challenges c
+   set key_version = a.current_key_version
+  from public.agents a
+ where c.agent_id = a.id
+   and c.key_version is null
+   and a.current_key_version = 1;
+update public.agent_events e
+   set key_version = a.current_key_version
+  from public.agents a
+ where e.agent_id = a.id
+   and e.signer = 'agent'
+   and e.key_version is null
+   and a.current_key_version = 1;
+
 create or replace function public.agent_key_change_enabled()
   returns boolean
   language sql
@@ -1155,6 +1184,11 @@ as $function$
   select
     case
       when r.mandate_version is null or r.mandate_version <> a.current_mandate_version then 'superseded'
+      when (
+        r.key_version is null
+        and not public.agent_key_change_enabled()
+        and a.current_key_version = 1
+      ) then r.status
       when r.key_version is null or r.key_version <> a.current_key_version then 'superseded'
       when r.status = 'pending' and r.expires_at <= now() then 'expired'
       else r.status
@@ -1258,7 +1292,9 @@ begin
      for no key update;
     if not found
        or _approval.mandate_version is distinct from _agent.current_mandate_version
-       or _approval.key_version is distinct from _agent.current_key_version
+       or (_approval.key_version is null
+           and (public.agent_key_change_enabled() or _agent.current_key_version <> 1))
+       or (_approval.key_version is not null and _approval.key_version <> _agent.current_key_version)
        or _approval.status <> 'approved'
        or _approval.consumed_at is not null
        or _approval.expires_at <= now()
@@ -1333,7 +1369,8 @@ begin
   end if;
   if _row.mandate_version is null
      or _row.mandate_version <> _agent.current_mandate_version
-     or (_row.key_version is null and _key_changes_enabled)
+     or (_row.key_version is null
+         and (_key_changes_enabled or _agent.current_key_version <> 1))
      or (_row.key_version is not null and _row.key_version <> _agent.current_key_version) then
     raise exception 'approval_superseded' using errcode = 'invalid_parameter_value';
   end if;

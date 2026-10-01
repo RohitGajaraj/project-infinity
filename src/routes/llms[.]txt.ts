@@ -62,6 +62,12 @@ The bare Agent ID may call only public tools. Before \`get_limits\`, \`record_sp
 Each nonce is accepted exactly once. A public Agent ID alone can never read live
 allowance, spend, raise an owner request, or read a private approval outcome.
 
+If an owner recovered a lost key, the agent must prove fresh possession before its
+recovery hold can be cleared. POST \`${origin}/api/public/recovery-confirm/YOUR_AGENT_ID\`
+with \`{nonce, signature, proof_body}\`. Sign the exact \`proof_body\` against that
+absolute endpoint using the current key and the POP canonical string. This clears
+only the recovery hold; the owner must still unfreeze the agent separately.
+
 - \`whoami\` — your ID, who you act for, and a sentence you can say out loud.
   Call once at the start of a task.
 - \`get_limits\` — what you may do and spend, and how much of this month's

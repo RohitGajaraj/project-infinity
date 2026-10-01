@@ -13,10 +13,8 @@ export function classifyCredentialStatus(input: {
   now?: number;
 }) {
   const expired = new Date(input.expiresAt).getTime() <= (input.now ?? Date.now());
-  const hasLegacyCurrentKey =
-    input.requestedKeyVersion === null && input.currentKeyVersion === 1;
-  const keyMatches =
-    hasLegacyCurrentKey || input.requestedKeyVersion === input.currentKeyVersion;
+  const hasLegacyCurrentKey = input.requestedKeyVersion === null && input.currentKeyVersion === 1;
+  const keyMatches = hasLegacyCurrentKey || input.requestedKeyVersion === input.currentKeyVersion;
   const credentialStatus: CredentialStatus =
     input.requestedVersion === null || !input.requestedRevision
       ? "legacy"

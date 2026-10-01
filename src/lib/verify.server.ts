@@ -88,7 +88,8 @@ export function keyLifecycle(agent: VerifiedAgent): AgentKeyLifecycle | null {
     possessionProven: agent.key_possession_proven,
     stateIssuedAt: agent.credential_state_issued_at,
     recoveryHoldVersion:
-      Number.isInteger(agent.key_recovery_hold_version) && (agent.key_recovery_hold_version ?? 0) > 0
+      Number.isInteger(agent.key_recovery_hold_version) &&
+      (agent.key_recovery_hold_version ?? 0) > 0
         ? agent.key_recovery_hold_version!
         : null,
   };

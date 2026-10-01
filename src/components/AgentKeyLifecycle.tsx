@@ -1,10 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-  changeAgentKey,
-  getAgentKeyHistory,
-} from "@/lib/key-lifecycle.functions";
+import { changeAgentKey, getAgentKeyHistory } from "@/lib/key-lifecycle.functions";
 import {
   agentKeyFingerprint,
   keyChangeProofParts,
@@ -110,7 +107,10 @@ export function AgentKeyLifecycle({ current }: { current: CurrentAgentKey }) {
       return;
     }
     if (!activeKey) {
-      setMessage({ tone: "error", text: "Current key history is unavailable. Reload before changing it." });
+      setMessage({
+        tone: "error",
+        text: "Current key history is unavailable. Reload before changing it.",
+      });
       return;
     }
     if (reason.trim().length < 3) {
@@ -338,7 +338,9 @@ export function AgentKeyLifecycle({ current }: { current: CurrentAgentKey }) {
                   key. Copying may leave it in clipboard history.
                 </p>
               </div>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-seal">Secret</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-seal">
+                Secret
+              </span>
             </div>
             <pre className="mt-3 max-h-28 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 font-mono text-xs">
               {prepared.secretKey}
@@ -397,7 +399,9 @@ export function AgentKeyLifecycle({ current }: { current: CurrentAgentKey }) {
               onChange={(event) => setReason(event.target.value)}
               maxLength={240}
               className="mt-2 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-              placeholder={mode === "rotate" ? "Scheduled credential hygiene" : "Runtime key was lost"}
+              placeholder={
+                mode === "rotate" ? "Scheduled credential hygiene" : "Runtime key was lost"
+              }
             />
           </div>
 

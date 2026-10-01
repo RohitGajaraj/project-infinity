@@ -332,9 +332,10 @@ function AgentDetail() {
                 const expired = new Date(r.expires_at).getTime() <= Date.now();
                 const superseded =
                   r.mandate_version === null ||
-                  r.key_version === null ||
                   (r.mandate_version !== undefined && r.mandate_version !== mandateVersion) ||
-                  (r.key_version !== undefined && r.key_version !== keyVersion);
+                  (r.key_version === null
+                    ? keyVersion > 1
+                    : r.key_version !== undefined && r.key_version !== keyVersion);
                 const pending = r.status === "pending" && !expired && !superseded;
                 return (
                   <li key={r.id} className="border-b border-border py-4">
