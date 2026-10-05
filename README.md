@@ -5,6 +5,11 @@
 > implemented. 200+ unit tests and live database/browser probes pass.** The next foundation item is
 > mandate lifecycle and verifier-visible versioning (`DIRECTION.md` §19.9 item 2)._
 
+> [!CAUTION]
+> **Closed, 2026-10-05.** The founder stopped Project Infinity and decided not to build Supaprod either, after the evidence review in
+> [`docs/strategy/wedge-decision-2026-10.md`](./docs/strategy/wedge-decision-2026-10.md). No further product work, migrations or
+> publishes are planned. Do not apply `supabase/migrations/20260930070000_agent_key_lifecycle.sql`.
+
 > [!WARNING]
 > **Competitive finding, 2026-09-29.** Baselayer announced a **$35M Series A on 2026-09-22** and
 > launched a "Know Your Agent" Agentic Identity Suite: the layer letting banks, merchants and platforms
@@ -41,6 +46,7 @@ tax the exact behaviour the network needs.
 
 | File | What it settles |
 | --- | --- |
+| [`docs/strategy/wedge-decision-2026-10.md`](./docs/strategy/wedge-decision-2026-10.md) | **Read first.** Why Infinity was closed on 2026-10-05: market map, gaps, scored wedges, Supaprod re-examined, and the founder's decision |
 | [`DIRECTION.md`](./DIRECTION.md) | **§8 is the approved plan** (supersedes §0 and §4). **§9 is the phase-1 gap analysis and build order. §10 settles who the customer is and how the verification handshake works — read it before building anything.** §1–§7 are the reasoning and ruled-out directions, kept as evidence |
 | [`AGENTS.md`](./AGENTS.md) | Technical decisions that bind. One rule plus a one-line reason |
 | [`MARKETPLACE-REVIEW.md`](./MARKETPLACE-REVIEW.md) | Why an agent marketplace was declined, with sizing and the player landscape. Its §6 finding — supply is oversupplied, demand is scarce — drives the phase-1 metric |
